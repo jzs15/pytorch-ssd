@@ -23,6 +23,7 @@ from vision.ssd.config import vgg_ssd_config
 from vision.ssd.config import mobilenetv1_ssd_config
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
+from torch.utils.tensorboard import SummaryWriter
 
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
@@ -107,8 +108,13 @@ if args.use_cuda and torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
     logging.info("Use Cuda.")
 
+def is_parallel(model):
+    return type(model) in (torch.nn.parallel.DataParallel, torch.nn.parallel.DistributedDataParallel)
 
-def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1):
+def de_parallel(model):
+    return model.module if is_parallel(model) else model
+
+def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, tb_writer=None):
     net.train(True)
     running_loss = 0.0
     running_regression_loss = 0.0
@@ -129,6 +135,15 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1):
         running_loss += loss.item()
         running_regression_loss += regression_loss.item()
         running_classification_loss += classification_loss.item()
+
+        if tb_writer:
+          tb_writer.add_scalar('metrics/regression_loss', regression_loss, i)
+          tb_writer.add_scalar('metrics/classification_loss', classification_loss, i)
+          tb_writer.add_scalar('metrics/loss', loss, i)
+
+        if i < 10:
+            tb_writer.add_graph(torch.jit.trace(de_parallel(net), images, strict=False), [])  # graph
+
         if i and i % debug_steps == 0:
             avg_loss = running_loss / debug_steps
             avg_reg_loss = running_regression_loss / debug_steps
@@ -170,6 +185,10 @@ def test(loader, net, criterion, device):
 
 if __name__ == '__main__':
     timer = Timer()
+
+    best = 'best.pt'
+    last = 'last.pt'
+    best_loss = 100.0
 
     logging.info(args)
     if args.net == 'vgg16-ssd':
@@ -319,20 +338,44 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+    loglen = 0
+    try:
+        loglen = len(os.listdir('/content/pytorch-ssd/log'))
+    except:
+        os.mkdir('/content/pytorch-ssd/log')
+        loglen = 0
+    
+    loglen = '/content/pytorch-ssd/log/train' + str(loglen)
+
+    tb_writer = None
+    tb_writer = SummaryWriter(loglen)  # Tensorboard
+
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
         scheduler.step()
         train(train_loader, net, criterion, optimizer,
-              device=DEVICE, debug_steps=args.debug_steps, epoch=epoch)
-        
-        if epoch % args.validation_epochs == 0 or epoch == args.num_epochs - 1:
-            val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
-            logging.info(
-                f"Epoch: {epoch}, " +
-                f"Validation Loss: {val_loss:.4f}, " +
-                f"Validation Regression Loss {val_regression_loss:.4f}, " +
-                f"Validation Classification Loss: {val_classification_loss:.4f}"
-            )
-            model_path = os.path.join(args.checkpoint_folder, f"{args.net}-Epoch-{epoch}-Loss-{val_loss}.pth")
-            net.save(model_path)
-            logging.info(f"Saved model {model_path}")
+              device=DEVICE, debug_steps=args.debug_steps, epoch=epoch, tb_writer=tb_writer)
+
+        val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
+        logging.info(
+            f"Epoch: {epoch}, " +
+            f"Validation Loss: {val_loss:.4f}, " +
+            f"Validation Regression Loss {val_regression_loss:.4f}, " +
+            f"Validation Classification Loss: {val_classification_loss:.4f}"
+        )
+
+        if tb_writer:
+          tb_writer.add_scalar('val/val_loss', val_loss, epoch)
+          tb_writer.add_scalar('val/val_regression_loss', val_regression_loss, epoch)
+          tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
+
+        model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{last}")
+        torch.save(net.state_dict(), model_path)
+
+        if best_loss > val_loss:
+          best_loss = val_loss
+
+        if best_loss == val_loss:
+          model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{best}")
+          torch.save(net.state_dict(), model_path)
+          logging.info(f"Saved model {model_path}")
