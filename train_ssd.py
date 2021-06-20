@@ -370,12 +370,26 @@ if __name__ == '__main__':
           tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
 
         model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{last}")
-        torch.save(net.state_dict(), model_path)
+        #torch.save(net.state_dict(), model_path)
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': net.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'val_regression_loss': val_regression_loss,
+            'val_classification_loss': val_classification_loss
+            }, model_path)
 
         if best_loss > val_loss:
           best_loss = val_loss
 
         if best_loss == val_loss:
           model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{best}")
-          torch.save(net.state_dict(), model_path)
+          #torch.save(net.state_dict(), model_path)
+          torch.save({
+              'epoch': epoch,
+              'model_state_dict': net.state_dict(),
+              'optimizer_state_dict': optimizer.state_dict(),
+              'val_regression_loss': val_regression_loss,
+              'val_classification_loss': val_classification_loss
+              }, model_path)
           logging.info(f"Saved model {model_path}")
