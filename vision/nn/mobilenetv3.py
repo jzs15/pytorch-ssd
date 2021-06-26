@@ -10,20 +10,20 @@ from torch.nn import init
 
 
 
-class hswish(nn.Module):
-    def forward(self, x):
-        #out = x * F.relu6(x + 3, inplace=True) / 6
-        out = F.hardswish(x, inplace=True)
+#class hswish(nn.Module):
+#    def forward(self, x):
+#        #out = x * F.relu6(x + 3, inplace=True) / 6
+#        out = F.hardswish(x, inplace=True)
+#
+#        return out
 
-        return out
 
-
-class hsigmoid(nn.Module):
-    def forward(self, x):
-        #out = F.relu6(x + 3, inplace=True) / 6
-        out = F.hardsigmoid(x, inplace=True)
-
-        return out
+#class hsigmoid(nn.Module):
+#    def forward(self, x):
+#        #out = F.relu6(x + 3, inplace=True) / 6
+#        out = F.hardsigmoid(x, inplace=True)
+#
+#        return out
 
 
 class SeModule(nn.Module):
@@ -36,7 +36,7 @@ class SeModule(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(in_size // reduction, in_size, kernel_size=1, stride=1, padding=0, bias=False),
             nn.BatchNorm2d(in_size),
-            hsigmoid()
+            nn.Hardsigmoid(inplace=True)
         )
 
     def forward(self, x):
@@ -86,7 +86,7 @@ class MobileNetV3_Large(nn.Module):
         self.features.append(self.conv1)
         self.bn1 = nn.BatchNorm2d(16)
         self.features.append(self.bn1)
-        self.hs1 = hswish()
+        self.hs1 = nn.Hardswish(inplace=True)
         self.features.append(self.hs1)
 
         self.bneck = nn.Sequential(
@@ -96,15 +96,15 @@ class MobileNetV3_Large(nn.Module):
             Block(5, 24, 72, 40, nn.ReLU(inplace=True), SeModule(40), 2),
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule(40), 1),
             Block(5, 40, 120, 40, nn.ReLU(inplace=True), SeModule(40), 1),
-            Block(3, 40, 240, 80, hswish(), None, 2),
-            Block(3, 80, 200, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 184, 80, hswish(), None, 1),
-            Block(3, 80, 480, 112, hswish(), SeModule(112), 1),
-            Block(3, 112, 672, 112, hswish(), SeModule(112), 1),
-            Block(5, 112, 672, 160, hswish(), SeModule(160), 1),
-            Block(5, 160, 672, 160, hswish(), SeModule(160), 2),
-            Block(5, 160, 960, 160, hswish(), SeModule(160), 1),
+            Block(3, 40, 240, 80, nn.Hardswish(inplace=True), None, 2),
+            Block(3, 80, 200, 80, nn.Hardswish(inplace=True), None, 1),
+            Block(3, 80, 184, 80, nn.Hardswish(inplace=True), None, 1),
+            Block(3, 80, 184, 80, nn.Hardswish(inplace=True), None, 1),
+            Block(3, 80, 480, 112, nn.Hardswish(inplace=True), SeModule(112), 1),
+            Block(3, 112, 672, 112, nn.Hardswish(inplace=True), SeModule(112), 1),
+            Block(5, 112, 672, 160, nn.Hardswish(inplace=True), SeModule(160), 1),
+            Block(5, 160, 672, 160, nn.Hardswish(inplace=True), SeModule(160), 2),
+            Block(5, 160, 960, 160, nn.Hardswish(inplace=True), SeModule(160), 1),
         )
 
         self.features.extend([block for block in self.bneck])
@@ -113,12 +113,12 @@ class MobileNetV3_Large(nn.Module):
         self.features.append(self.conv2)
         self.bn2 = nn.BatchNorm2d(960)
         self.features.append(self.bn2)
-        self.hs2 = hswish()
+        self.hs2 = nn.Hardswish(inplace=True)
         self.features.append(self.hs2)
 
         self.linear3 = nn.Linear(960, 1280)
         self.bn3 = nn.BatchNorm1d(1280)
-        self.hs3 = hswish()
+        self.hs3 = nn.Hardswish(inplace=True)
         self.linear4 = nn.Linear(1280, num_classes)
         self.init_params()
 
@@ -160,21 +160,21 @@ class MobileNetV3_Small(nn.Module):
         self.features.append(self.conv1)
         self.bn1 = nn.BatchNorm2d(16)
         self.features.append(self.bn1)
-        self.hs1 = hswish()
+        self.hs1 = nn.Hardswish(inplace=True)
         self.features.append(self.hs1)
 
         self.bneck = nn.Sequential(
             Block(3, 16, 16, 16, nn.ReLU(inplace=True), SeModule(16), 2),
             Block(3, 16, 72, 24, nn.ReLU(inplace=True), None, 2),
             Block(3, 24, 88, 24, nn.ReLU(inplace=True), None, 1),
-            Block(5, 24, 96, 40, hswish(), SeModule(40), 2),
-            Block(5, 40, 240, 40, hswish(), SeModule(40), 1),
-            Block(5, 40, 240, 40, hswish(), SeModule(40), 1),
-            Block(5, 40, 120, 48, hswish(), SeModule(48), 1),
-            Block(5, 48, 144, 48, hswish(), SeModule(48), 1),
-            Block(5, 48, 288, 96, hswish(), SeModule(96), 2),
-            Block(5, 96, 576, 96, hswish(), SeModule(96), 1),
-            Block(5, 96, 576, 96, hswish(), SeModule(96), 1),
+            Block(5, 24, 96, 40, nn.Hardswish(inplace=True), SeModule(40), 2),
+            Block(5, 40, 240, 40, nn.Hardswish(inplace=True), SeModule(40), 1),
+            Block(5, 40, 240, 40, nn.Hardswish(inplace=True), SeModule(40), 1),
+            Block(5, 40, 120, 48, nn.Hardswish(inplace=True), SeModule(48), 1),
+            Block(5, 48, 144, 48, nn.Hardswish(inplace=True), SeModule(48), 1),
+            Block(5, 48, 288, 96, nn.Hardswish(inplace=True), SeModule(96), 2),
+            Block(5, 96, 576, 96, nn.Hardswish(inplace=True), SeModule(96), 1),
+            Block(5, 96, 576, 96, nn.Hardswish(inplace=True), SeModule(96), 1),
         )
 
         self.features.extend([block for block in self.bneck])
@@ -183,11 +183,11 @@ class MobileNetV3_Small(nn.Module):
         self.features.append(self.conv2)
         self.bn2 = nn.BatchNorm2d(576)
         self.features.append(self.bn2)
-        self.hs2 = hswish()
+        self.hs2 = nn.Hardswish(inplace=True)
         self.features.append(self.hs2)
         self.linear3 = nn.Linear(576, 1280)
         self.bn3 = nn.BatchNorm1d(1280)
-        self.hs3 = hswish()
+        self.hs3 = nn.Hardswish(inplace=True)
         self.linear4 = nn.Linear(1280, num_classes)
         self.init_params()
 

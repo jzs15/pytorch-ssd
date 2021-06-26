@@ -1,7 +1,8 @@
 import torch
 from torch.nn import Conv2d, Sequential, ModuleList, BatchNorm2d
 from torch import nn
-from ..nn.mobilenetv3 import MobileNetV3_Large, MobileNetV3_Small, Block, hswish
+#from ..nn.mobilenetv3 import MobileNetV3_Large, MobileNetV3_Small, Block, hswish
+from ..nn.mobilenetv3 import MobileNetV3_Large, MobileNetV3_Small, Block
 
 from .ssd import SSD
 from .predictor import Predictor
@@ -26,10 +27,10 @@ def create_mobilenetv3_large_ssd_lite(num_classes, width_mult=1.0, use_batch_nor
 
     source_layer_indexes = [ 15, 21 ]
     extras = ModuleList([
-        Block(3, 960, 256, 512, hswish(), None, stride=2),
-        Block(3, 512, 128, 256, hswish(), None, stride=2),
-        Block(3, 256, 128, 256, hswish(), None, stride=2),
-        Block(3, 256, 64, 64, hswish(), None, stride=2)
+        Block(3, 960, 256, 512, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 512, 128, 256, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 256, 128, 256, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 256, 64, 64, nn.Hardswish(inplace=True), None, stride=2)
     ])
 
     regression_headers = ModuleList([
@@ -60,10 +61,10 @@ def create_mobilenetv3_small_ssd_lite(num_classes, width_mult=1.0, use_batch_nor
 
     source_layer_indexes = [ 11, 17 ]
     extras = ModuleList([
-        Block(3, 576, 256, 512, hswish(), None, stride=2),
-        Block(3, 512, 128, 256, hswish(), None, stride=2),
-        Block(3, 256, 128, 256, hswish(), None, stride=2),
-        Block(3, 256, 64, 64, hswish(), None, stride=2)
+        Block(3, 576, 256, 512, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 512, 128, 256, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 256, 128, 256, nn.Hardswish(inplace=True), None, stride=2),
+        Block(3, 256, 64, 64, nn.Hardswish(inplace=True), None, stride=2)
     ])
 
     regression_headers = ModuleList([
