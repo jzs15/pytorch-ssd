@@ -86,7 +86,7 @@ parser.add_argument('--batch_size', default=32, type=int,
                     help='Batch size for training')
 parser.add_argument('--num_epochs', default=120, type=int,
                     help='the number epochs')
-parser.add_argument('--num_workers', default=4, type=int,
+parser.add_argument('--num_workers', default=0, type=int,
                     help='Number of workers used in dataloading')
 parser.add_argument('--validation_epochs', default=5, type=int,
                     help='the number epochs')
@@ -221,6 +221,10 @@ if __name__ == '__main__':
                                   config.size_variance, 0.5)
 
     test_transform = TestTransform(config.image_size, config.image_mean, config.image_std)
+
+    train_transform = None
+    #target_transform = None
+    test_transform = None
 
     logging.info("Prepare training datasets.")
     datasets = []
