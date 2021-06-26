@@ -13,15 +13,7 @@ from torch.nn import init
 class hswish(nn.Module):
     def forward(self, x):
         #out = x * F.relu6(x + 3, inplace=True) / 6
-        compmax = torch.zeros(x.size()).to('cuda:0')
-        compmin = torch.zeros(x.size()).to('cuda:0')
-        compmin = compmin + 6
-
-        a = x + 3
-        b = torch.maximum(a, compmax)
-        c = torch.minimum(b, compmin)
-
-        out = x * c / 6
+        out = F.hardswish(x, inplace=True)
 
         return out
 
@@ -29,15 +21,7 @@ class hswish(nn.Module):
 class hsigmoid(nn.Module):
     def forward(self, x):
         #out = F.relu6(x + 3, inplace=True) / 6
-        compmax = torch.zeros(x.size()).to('cuda:0')
-        compmin = torch.zeros(x.size()).to('cuda:0')
-        compmin = compmin + 6
-
-        a = x + 3
-        b = torch.maximum(a, compmax)
-        c = torch.minimum(b, compmin)
-
-        out = c / 6
+        out = F.hardsigmoid(x, inplace=True)
 
         return out
 
