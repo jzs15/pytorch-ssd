@@ -342,17 +342,20 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+    targetPath = args.checkpoint_folder + '/train'
+    print('targetPath: ', targetPath)
     loglen = 0
     try:
-        loglen = len(os.listdir('/content/pytorch-ssd/log'))
+        loglen = len(os.listdir(targetPath))
     except:
-        os.mkdir('/content/pytorch-ssd/log')
         loglen = 0
-    
-    loglen = '/content/pytorch-ssd/log/train' + str(loglen)
+
+    targetPath = targetPath + str(loglen)
+    os.mkdir(targetPath)
+    print('targetPath: ', targetPath)
 
     tb_writer = None
-    tb_writer = SummaryWriter(loglen)  # Tensorboard
+    tb_writer = SummaryWriter(targetPath)  # Tensorboard
 
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
@@ -373,7 +376,7 @@ if __name__ == '__main__':
           tb_writer.add_scalar('val/val_regression_loss', val_regression_loss, epoch)
           tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
 
-        model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{last}")
+        model_path = targetPath + '/' + args.net + '-' + last
         #torch.save(net.state_dict(), model_path)
         torch.save({
             'epoch': epoch,
@@ -387,7 +390,7 @@ if __name__ == '__main__':
           best_loss = val_loss
 
         if best_loss == val_loss:
-          model_path = os.path.join(args.checkpoint_folder, f"{args.net}-{best}")
+          model_path = targetPath + '/' + args.net + "-" + best
           #torch.save(net.state_dict(), model_path)
           torch.save({
               'epoch': epoch,
