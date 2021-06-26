@@ -222,9 +222,9 @@ if __name__ == '__main__':
 
     test_transform = TestTransform(config.image_size, config.image_mean, config.image_std)
 
-    train_transform = None
+    #train_transform = None
     #target_transform = None
-    test_transform = None
+    #test_transform = None
 
     logging.info("Prepare training datasets.")
     datasets = []
@@ -356,9 +356,9 @@ if __name__ == '__main__':
 
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
-        scheduler.step()
         train(train_loader, net, criterion, optimizer,
               device=DEVICE, debug_steps=args.debug_steps, epoch=epoch, tb_writer=tb_writer)
+        scheduler.step()
 
         val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
         logging.info(
