@@ -129,6 +129,7 @@ if __name__ == '__main__':
     if args.dataset_type == "voc":
         dataset = VOCDataset(args.dataset, is_test=True)
     elif args.dataset_type == 'open_images':
+        print(args.dataset)
         dataset = OpenImagesDataset(args.dataset, dataset_type="test")
 
     true_case_stat, all_gb_boxes, all_difficult_cases = group_annotation_by_class(dataset)
@@ -172,13 +173,13 @@ if __name__ == '__main__':
 
     results = []
     for i in range(len(dataset)):
-        print("process image", i)
-        timer.start("Load Image")
+#        print("process image", i)
+#        timer.start("Load Image")
         image = dataset.get_image(i)
-        print("Load Image: {:4f} seconds.".format(timer.end("Load Image")))
-        timer.start("Predict")
+#        print("Load Image: {:4f} seconds.".format(timer.end("Load Image")))
+#        timer.start("Predict")
         boxes, labels, probs = predictor.predict(image)
-        print("Prediction: {:4f} seconds.".format(timer.end("Predict")))
+#        print("Prediction: {:4f} seconds.".format(timer.end("Predict")))
         indexes = torch.ones(labels.size(0), 1, dtype=torch.float32) * i
         results.append(torch.cat([
             indexes.reshape(-1, 1),
@@ -187,18 +188,18 @@ if __name__ == '__main__':
             boxes + 1.0  # matlab's indexes start from 1
         ], dim=1))
     results = torch.cat(results)
-    for class_index, class_name in enumerate(class_names):
-        if class_index == 0: continue  # ignore background
-        prediction_path = eval_path / f"det_test_{class_name}.txt"
-        with open(prediction_path, "w") as f:
-            sub = results[results[:, 1] == class_index, :]
-            for i in range(sub.size(0)):
-                prob_box = sub[i, 2:].numpy()
-                image_id = dataset.ids[int(sub[i, 0])]
-                print(
-                    image_id + " " + " ".join([str(v) for v in prob_box]),
-                    file=f
-                )
+#    for class_index, class_name in enumerate(class_names):
+#        if class_index == 0: continue  # ignore background
+#        prediction_path = eval_path / f"det_test_{class_name}.txt"
+#        with open(prediction_path, "w") as f:
+#            sub = results[results[:, 1] == class_index, :]
+#            for i in range(sub.size(0)):
+#                prob_box = sub[i, 2:].numpy()
+#                image_id = dataset.ids[int(sub[i, 0])]
+#                print(
+#                    image_id + " " + " ".join([str(v) for v in prob_box]),
+#                    file=f
+#                )
     aps = []
     print("\n\nAverage Precision Per-class:")
     for class_index, class_name in enumerate(class_names):
