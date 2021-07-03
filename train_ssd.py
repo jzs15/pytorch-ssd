@@ -41,7 +41,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument("--dataset_type", default="voc", type=str,
                     help='Specify dataset type. Currently support voc and open_images.')
 
-parser.add_argument('--datasets', nargs='+', help='Dataset directory path')
+parser.add_argument('--datasets', type=str, help='Dataset directory path')
 parser.add_argument('--validation_dataset', help='Dataset directory path')
 parser.add_argument('--balance_data', action='store_true',
                     help="Balance training data by down-sampling more frequent labels.")
@@ -211,6 +211,7 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, 
     running_loss = 0.0
     running_regression_loss = 0.0
     running_classification_loss = 0.0
+
     for i, data in enumerate(loader):
         images, boxes, labels = data
         images = images.to(device)
@@ -229,11 +230,11 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, 
         running_classification_loss += classification_loss.item()
 
         if tb_writer:
-          tb_writer.add_scalar('metrics/regression_loss', regression_loss, i)
-          tb_writer.add_scalar('metrics/classification_loss', classification_loss, i)
-          tb_writer.add_scalar('metrics/loss', loss, i)
+            tb_writer.add_scalar('metrics/regression_loss', regression_loss, i)
+            tb_writer.add_scalar('metrics/classification_loss', classification_loss, i)
+            tb_writer.add_scalar('metrics/loss', loss, i)
 
-        if i < 10:
+        if epoch == 1:
             tb_writer.add_graph(torch.jit.trace(de_parallel(net), images, strict=False), [])  # graph
 
         if i and i % debug_steps == 0:
@@ -277,7 +278,7 @@ def test(loader, net, criterion, device):
 def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
-    dataset = OpenImagesDataset(args.datasets[0], dataset_type="test")
+    dataset = OpenImagesDataset(args.datasets, dataset_type="test")
     true_case_stat, all_gb_boxes, all_difficult_cases = group_annotation_by_class(dataset)
 
     if args.net == 'vgg16-ssd':
@@ -357,7 +358,6 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
             False
         )
         aps.append(ap)
-        print(f"{class_name}: {ap}")
 
 #    print(f"\nAverage Precision Across All Classes:{sum(aps)/len(aps)}")
 
@@ -408,30 +408,28 @@ if __name__ == '__main__':
     #test_transform = None
 
     logging.info("Prepare training datasets.")
-    datasets = []
-    for dataset_path in args.datasets:
-        if args.dataset_type == 'voc':
-            dataset = VOCDataset(dataset_path, transform=train_transform,
-                                 target_transform=target_transform)
-            label_file = os.path.join(args.checkpoint_folder, "voc-model-labels.txt")
-            store_labels(label_file, dataset.class_names)
-            num_classes = len(dataset.class_names)
-        elif args.dataset_type == 'open_images':
-            dataset = OpenImagesDataset(dataset_path,
-                 transform=train_transform, target_transform=target_transform,
-                 dataset_type="train", balance_data=args.balance_data)
-            label_file = os.path.join(args.checkpoint_folder, "open-images-model-labels.txt")
-            store_labels(label_file, dataset.class_names)
-            logging.info(dataset)
-            num_classes = len(dataset.class_names)
+    if args.dataset_type == 'voc':
+        dataset = VOCDataset(args.datasets, transform=train_transform,
+                             target_transform=target_transform)
+        label_file = os.path.join(args.checkpoint_folder, "voc-model-labels.txt")
+        store_labels(label_file, dataset.class_names)
+        num_classes = len(dataset.class_names)
+    elif args.dataset_type == 'open_images':
+        dataset = OpenImagesDataset(args.datasets,
+             transform=train_transform, target_transform=target_transform,
+             dataset_type="train", balance_data=args.balance_data)
+        label_file = os.path.join(args.checkpoint_folder, "open-images-model-labels.txt")
+        store_labels(label_file, dataset.class_names)
+        logging.info(dataset)
+        num_classes = len(dataset.class_names)
 
-        else:
-            raise ValueError(f"Dataset type {args.dataset_type} is not supported.")
-        datasets.append(dataset)
+    else:
+        raise ValueError(f"Dataset type {args.dataset_type} is not supported.")
+
     logging.info(f"Stored labels into file {label_file}.")
-    train_dataset = ConcatDataset(datasets)
-    logging.info("Train dataset size: {}".format(len(train_dataset)))
-    train_loader = DataLoader(train_dataset, args.batch_size,
+#    train_dataset = ConcatDataset(datasets)
+    logging.info("Train dataset size: {}".format(len(dataset)))
+    train_loader = DataLoader(dataset, args.batch_size,
                               num_workers=args.num_workers,
                               shuffle=True)
     logging.info("Prepare Validation datasets.")
@@ -439,7 +437,7 @@ if __name__ == '__main__':
         val_dataset = VOCDataset(args.validation_dataset, transform=test_transform,
                                  target_transform=target_transform, is_test=True)
     elif args.dataset_type == 'open_images':
-        val_dataset = OpenImagesDataset(dataset_path,
+        val_dataset = OpenImagesDataset(args.datasets,
                                         transform=test_transform, target_transform=target_transform,
                                         dataset_type="test")
         logging.info(val_dataset)
@@ -545,17 +543,17 @@ if __name__ == '__main__':
         scheduler.step()
 
         val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
+        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath)
         logging.info(
             f"Epoch: {epoch}, " +
             f"Validation Loss: {val_loss:.4f}, " +
             f"Validation Regression Loss {val_regression_loss:.4f}, " +
-            f"Validation Classification Loss: {val_classification_loss:.4f}"
+            f"Validation Classification Loss: {val_classification_loss:.4f}, " +
+            f"{cname[1]}: {cap[0]:.4f}, " +
+            f"{cname[2]}: {cap[1]:.4f}"
         )
 
         model_path = targetPath + '/' + args.net + '-' + last
-
-        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath)
-        print(cname, cap)
 
         #torch.save(net.state_dict(), model_path)
         torch.save({
@@ -585,3 +583,5 @@ if __name__ == '__main__':
           tb_writer.add_scalar('val/val_loss', val_loss, epoch)
           tb_writer.add_scalar('val/val_regression_loss', val_regression_loss, epoch)
           tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
+          tb_writer.add_scalar('val/target', cap[0], epoch)
+          tb_writer.add_scalar('val/text', cap[1], epoch)
