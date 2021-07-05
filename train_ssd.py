@@ -508,6 +508,10 @@ if __name__ == '__main__':
     logging.info(f"Learning rate: {args.lr}, Base net learning rate: {base_net_lr}, "
                  + f"Extra Layers learning rate: {extra_layers_lr}.")
 
+    if args.pretrained_ssd:
+        loadnet = torch.load(args.pretrained_ssd)
+        optimizer.load_state_dict(loadnet['optimizer_state_dict'])
+
     if args.scheduler == 'multi-step':
         logging.info("Uses MultiStepLR scheduler.")
         milestones = [int(v.strip()) for v in args.milestones.split(",")]
@@ -583,5 +587,7 @@ if __name__ == '__main__':
           tb_writer.add_scalar('val/val_loss', val_loss, epoch)
           tb_writer.add_scalar('val/val_regression_loss', val_regression_loss, epoch)
           tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
+          tb_writer.add_scalar('val/map', sum(cap)/len(cap), epoch)
           tb_writer.add_scalar('val/target', cap[0], epoch)
           tb_writer.add_scalar('val/text', cap[1], epoch)
+
