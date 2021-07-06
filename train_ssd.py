@@ -525,6 +525,10 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+    if args.pretrained_ssd:
+        loadnet = torch.load(args.pretrained_ssd)
+        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
+
     loglen = 0
     try:
         loglen = len(os.listdir(args.checkpoint_folder))
@@ -553,6 +557,7 @@ if __name__ == '__main__':
             f"Validation Loss: {val_loss:.4f}, " +
             f"Validation Regression Loss {val_regression_loss:.4f}, " +
             f"Validation Classification Loss: {val_classification_loss:.4f}, " +
+            f"map: {sum(cap)/len(cap):.4f}, " +
             f"{cname[1]}: {cap[0]:.4f}, " +
             f"{cname[2]}: {cap[1]:.4f}"
         )
@@ -564,6 +569,7 @@ if __name__ == '__main__':
             'epoch': epoch,
             'model_state_dict': net.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
             'val_regression_loss': val_regression_loss,
             'val_classification_loss': val_classification_loss
             }, model_path)
@@ -578,6 +584,7 @@ if __name__ == '__main__':
               'epoch': epoch,
               'model_state_dict': net.state_dict(),
               'optimizer_state_dict': optimizer.state_dict(),
+              'scheduler_state_dict': scheduler.state_dict(),
               'val_regression_loss': val_regression_loss,
               'val_classification_loss': val_classification_loss
               }, model_path)
