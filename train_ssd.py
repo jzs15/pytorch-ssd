@@ -35,6 +35,8 @@ from vision.utils.misc import str2bool, Timer
 
 import numpy as np
 
+from vision.optim.radam import RAdam
+
 parser = argparse.ArgumentParser(
     description='Single Shot MultiBox Detector Training With Pytorch')
 
@@ -503,8 +505,9 @@ if __name__ == '__main__':
 
     criterion = MultiboxLoss(config.priors, iou_threshold=0.5, neg_pos_ratio=3,
                              center_variance=0.1, size_variance=0.2, device=DEVICE)
-    optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
-                                weight_decay=args.weight_decay)
+#    optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
+#                                weight_decay=args.weight_decay)
+    optimizer = RAdam(params, lr=0.1, betas=(0.9, 0.999), weight_decay=1e-4)
     logging.info(f"Learning rate: {args.lr}, Base net learning rate: {base_net_lr}, "
                  + f"Extra Layers learning rate: {extra_layers_lr}.")
 
