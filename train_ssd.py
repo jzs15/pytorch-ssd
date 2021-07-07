@@ -525,9 +525,9 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if args.pretrained_ssd:
-        loadnet = torch.load(args.pretrained_ssd)
-        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
+#    if args.pretrained_ssd:
+#        loadnet = torch.load(args.pretrained_ssd)
+#        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
 
     loglen = 0
     try:
