@@ -208,17 +208,19 @@ def compute_average_precision_per_class(num_true_cases, gt_boxes, difficult_case
     else:
         return measurements.compute_average_precision(precision, recall)
 
-def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, tb_writer=None):
+def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
     net.train(True)
     running_loss = 0.0
     running_regression_loss = 0.0
     running_classification_loss = 0.0
+    num = 0
 
     for i, data in enumerate(loader):
         images, boxes, labels = data
         images = images.to(device)
         boxes = boxes.to(device)
         labels = labels.to(device)
+        num += 1
 
         optimizer.zero_grad()
         confidence, locations = net(images)
@@ -231,27 +233,10 @@ def train(loader, net, criterion, optimizer, device, debug_steps=100, epoch=-1, 
         running_regression_loss += regression_loss.item()
         running_classification_loss += classification_loss.item()
 
-        if tb_writer:
-            tb_writer.add_scalar('metrics/regression_loss', regression_loss, i)
-            tb_writer.add_scalar('metrics/classification_loss', classification_loss, i)
-            tb_writer.add_scalar('metrics/loss', loss, i)
-
         if epoch == 1:
             tb_writer.add_graph(torch.jit.trace(de_parallel(net), images, strict=False), [])  # graph
 
-        if i and i % debug_steps == 0:
-            avg_loss = running_loss / debug_steps
-            avg_reg_loss = running_regression_loss / debug_steps
-            avg_clf_loss = running_classification_loss / debug_steps
-            logging.info(
-                f"Epoch: {epoch}, Step: {i}, " +
-                f"Average Loss: {avg_loss:.4f}, " +
-                f"Average Regression Loss {avg_reg_loss:.4f}, " +
-                f"Average Classification Loss: {avg_clf_loss:.4f}"
-            )
-            running_loss = 0.0
-            running_regression_loss = 0.0
-            running_classification_loss = 0.0
+    return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
 
 def test(loader, net, criterion, device):
@@ -635,17 +620,25 @@ if __name__ == '__main__':
 
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
-        train(train_loader, net, criterion, optimizer,
-              device=DEVICE, debug_steps=args.debug_steps, epoch=epoch, tb_writer=tb_writer)
+        train_loss, train_regression_loss, train_classification_loss = train(train_loader, net, criterion, optimizer,
+              device=DEVICE, epoch=epoch, tb_writer=tb_writer)
         scheduler.step()
-
-        val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
-        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath)
         logging.info(
             f"Epoch: {epoch}, " +
+            f"Train Loss: {train_loss:.4f}, " +
+            f"Train Regression Loss {train_regression_loss:.4f}, " +
+            f"Train Classification Loss: {train_classification_loss:.4f}"
+        )
+
+        val_loss, val_regression_loss, val_classification_loss = test(val_loader, net, criterion, DEVICE)
+        logging.info(
             f"Validation Loss: {val_loss:.4f}, " +
             f"Validation Regression Loss {val_regression_loss:.4f}, " +
-            f"Validation Classification Loss: {val_classification_loss:.4f}, " +
+            f"Validation Classification Loss: {val_classification_loss:.4f}"
+        )
+
+        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath)
+        logging.info(
             f"map: {sum(cap)/len(cap):.4f}, " +
             f"{cname[1]}: {cap[0]:.4f}, " +
             f"{cname[2]}: {cap[1]:.4f}"
@@ -687,9 +680,12 @@ if __name__ == '__main__':
           logging.info(f"Saved model {model_path}")
 
         if tb_writer:
-          tb_writer.add_scalar('val/val_loss', val_loss, epoch)
-          tb_writer.add_scalar('val/val_regression_loss', val_regression_loss, epoch)
-          tb_writer.add_scalar('val/val_classification_loss', val_classification_loss, epoch)
+          tb_writer.add_scalar('train/loss', train_loss, epoch)
+          tb_writer.add_scalar('train/regression_loss', train_regression_loss, epoch)
+          tb_writer.add_scalar('train/classification_loss', train_classification_loss, epoch)
+          tb_writer.add_scalar('val/loss', val_loss, epoch)
+          tb_writer.add_scalar('val/regression_loss', val_regression_loss, epoch)
+          tb_writer.add_scalar('val/classification_loss', val_classification_loss, epoch)
           tb_writer.add_scalar('val/map', sum(cap)/len(cap), epoch)
           tb_writer.add_scalar('val/target', cap[0], epoch)
           tb_writer.add_scalar('val/text', cap[1], epoch)
