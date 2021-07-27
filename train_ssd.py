@@ -365,6 +365,91 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
 
     return class_names, aps
 
+def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
+    class_names = [name.strip() for name in open(label_file).readlines()]
+
+    dataset = OpenImagesDataset(args.datasets, dataset_type="test")
+
+    if args.net == 'vgg16-ssd':
+        net = create_vgg_ssd(len(class_names), is_test=True)
+    elif args.net == 'mb1-ssd':
+        net = create_mobilenetv1_ssd(len(class_names), is_test=True)
+    elif args.net == 'mb1-ssd-lite':
+        net = create_mobilenetv1_ssd_lite(len(class_names), is_test=True)
+    elif args.net == 'sq-ssd-lite':
+        net = create_squeezenet_ssd_lite(len(class_names), is_test=True)
+    elif args.net == 'mb2-ssd-lite':
+        net = create_mobilenetv2_ssd_lite(len(class_names), width_mult=args.mb2_width_mult, is_test=True)
+    elif args.net == 'mb3-large-ssd-lite':
+        net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
+    elif args.net == 'mb3-small-ssd-lite':
+        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+    else:
+        logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    net.load_state_dict(net_state_dict)
+    net = net.to(DEVICE)
+
+    if args.net == 'vgg16-ssd':
+        predictor = create_vgg_ssd_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
+    elif args.net == 'mb1-ssd':
+        predictor = create_mobilenetv1_ssd_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
+    elif args.net == 'mb1-ssd-lite':
+        predictor = create_mobilenetv1_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
+    elif args.net == 'sq-ssd-lite':
+        predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE, candidate_size=200)
+    elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
+    else:
+        logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
+        parser.print_help(sys.stderr)
+        sys.exit(1)
+
+    totalsum = 0
+    totalsumtarget = 0
+    totalsumtext = 0
+
+    try:
+        for i in range(len(dataset)):
+            image = dataset.get_image(i)
+            a, gtbox, gtlabel = dataset.__getitem__(i)
+            gtboxes = torch.tensor(gtbox)
+            boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+            sum = 0
+            sumtarget = 0
+            sumtext = 0
+            targetcnt = 0
+            textcnt = 0
+
+            for j in range(gtboxes.size(0)):
+                iou = box_utils.iou_of(gtboxes[j], boxes)
+                maxval = torch.max(iou)
+                xor = 1 - maxval
+                sum = sum + xor
+
+                if gtlabel[j] == 1:
+                    sumtarget = sumtarget + xor
+                    targetcnt = targetcnt + 1
+                elif gtlabel[j] == 2:
+                    sumtext = sumtext + xor
+                    textcnt = textcnt + 1
+
+            totalsum = totalsum + sum / gtboxes.size(0)
+            totalsumtarget = totalsumtarget + sumtarget / targetcnt
+            totalsumtext = totalsumtext + sumtext / textcnt
+
+        retavr = (totalsum/len(dataset)).item()
+        retavrtarget = (totalsumtarget/len(dataset)).item()
+        retavrtext = (totalsumtext/len(dataset)).item()
+    except:
+        retavr = 1.0
+        retavrtarget = 1.0
+        retavrtext = 1.0
+        
+    
+    return retavr, retavrtarget, retavrtext
 
 if __name__ == '__main__':
     timer = Timer()
@@ -443,6 +528,7 @@ if __name__ == '__main__':
                                         transform=test_transform, target_transform=target_transform,
                                         dataset_type="test")
         logging.info(val_dataset)
+
     logging.info("validation dataset size: {}".format(len(val_dataset)))
 
     val_loader = DataLoader(val_dataset, args.batch_size,
@@ -565,6 +651,13 @@ if __name__ == '__main__':
             f"{cname[2]}: {cap[1]:.4f}"
         )
 
+        totalavr, totalavrtarget, totalavrtext = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file)
+        logging.info(
+            f"totalavr: {totalavr}, " +
+            f"totalavr: {totalavrtarget}, " +
+            f"totalavr: {totalavrtext}"
+        )
+
         model_path = targetPath + '/' + args.net + '-' + last
 
         #torch.save(net.state_dict(), model_path)
@@ -600,4 +693,7 @@ if __name__ == '__main__':
           tb_writer.add_scalar('val/map', sum(cap)/len(cap), epoch)
           tb_writer.add_scalar('val/target', cap[0], epoch)
           tb_writer.add_scalar('val/text', cap[1], epoch)
+          tb_writer.add_scalar('box/total', totalavr, epoch)
+          tb_writer.add_scalar('box/target', totalavrtarget, epoch)
+          tb_writer.add_scalar('box/text', totalavrtext, epoch)
 
