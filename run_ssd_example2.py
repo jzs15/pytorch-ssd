@@ -20,42 +20,49 @@ model_path = sys.argv[2]
 label_path = sys.argv[3]
 image_path = sys.argv[4]
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 def cal_boxdiff(predictor, dataset, iou_treshold):
     totalsum = 0
     totalsumtarget = 0
     totalsumtext = 0
 
-    for i in range(len(dataset)):
-        image = dataset.get_image(i)
-        a, gtbox, gtlabel = dataset.__getitem__(i)
-        gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
-        sum = 0
-        sumtarget = 0
-        sumtext = 0
-        targetcnt = 0
-        textcnt = 0
+    try:
+        for i in range(len(dataset)):
+            image = dataset.get_image(i)
+            a, gtbox, gtlabel = dataset.__getitem__(i)
+            gtboxes = torch.tensor(gtbox)
+            boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+            sum = 0
+            sumtarget = 0
+            sumtext = 0
+            targetcnt = 0
+            textcnt = 0
 
-        for j in range(gtboxes.size(0)):
-            iou = box_utils.iou_of(gtboxes[j], boxes)
-            maxval = torch.max(iou)
-            xor = 1 - maxval
-            sum = sum + xor
+            for j in range(gtboxes.size(0)):
+                iou = box_utils.iou_of(gtboxes[j], boxes)
+                maxval = torch.max(iou)
+                xor = 1 - maxval
+                sum = sum + xor
 
-            if gtlabel[j] == 1:
-                sumtarget = sumtarget + xor
-                targetcnt = targetcnt + 1
-            elif gtlabel[j] == 2:
-                sumtext = sumtext + xor
-                textcnt = textcnt + 1
+                if gtlabel[j] == 1:
+                    sumtarget = sumtarget + xor
+                    targetcnt = targetcnt + 1
+                elif gtlabel[j] == 2:
+                    sumtext = sumtext + xor
+                    textcnt = textcnt + 1
 
-        totalsum = totalsum + sum / gtboxes.size(0)
-        totalsumtarget = totalsumtarget + sumtarget / targetcnt
-        totalsumtext = totalsumtext + sumtext / textcnt
+            totalsum = totalsum + sum / gtboxes.size(0)
+            totalsumtarget = totalsumtarget + sumtarget / targetcnt
+            totalsumtext = totalsumtext + sumtext / textcnt
 
-    retavr = (totalsum/len(dataset)).item()
-    retavrtarget = (totalsumtarget/len(dataset)).item()
-    retavrtext = (totalsumtext/len(dataset)).item()
+        retavr = (totalsum/len(dataset)).item()
+        retavrtarget = (totalsumtarget/len(dataset)).item()
+        retavrtext = (totalsumtext/len(dataset)).item()
+    except:
+        retavr = 1.0
+        retavrtarget = 1.0
+        retavrtext = 1.0
     
     return retavr, retavrtarget, retavrtext
 
@@ -149,7 +156,8 @@ class_names = [name.strip() for name in open(label_path).readlines()]
 
 net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
 net.load(model_path)
-predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200)
+net.to(DEVICE)
+predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE)
 
 #config = mobilenetv1_ssd_config
 #test_transform = TestTransform(config.image_size, config.image_mean, config.image_std)
@@ -160,22 +168,22 @@ predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200)
 #dataset = OpenImagesDataset(args.datasets, dataset_type="test")
 dataset = OpenImagesDataset('/content/dataset', dataset_type="test")
 
-#print(cal_boxdiff(predictor, dataset, 0.5))
+print(cal_boxdiff(predictor, dataset, 0.5))
 
-from types import SimpleNamespace as sn
+#from types import SimpleNamespace as sn
 
-dictargs = {
-        'net': 'mb3-small-ssd-lite',
-        'datasets': '/content/dataset'
-    }
-args = sn(**dictargs)
-print(args.net)
-print(args.datasets)
+#dictargs = {
+#        'net': 'mb3-small-ssd-lite',
+#        'datasets': '/content/dataset'
+#    }
+#args = sn(**dictargs)
+#print(args.net)
+#print(args.datasets)
 
 #model = torch.load(model_path, map_location=lambda storage, loc: storage)
-model = torch.load(model_path)
+#model = torch.load(model_path)
 #net.load_state_dict(model['model_state_dict'])
-print(cal_boxdiff2(args, model['model_state_dict'], 'cuda:0', 0.5, label_path))
+#print(cal_boxdiff2(args, model['model_state_dict'], 'cuda:0', 0.5, label_path))
 #for i in range(len(dataset)):
 #    image = dataset.get_image(i)
 #totalsum = 0

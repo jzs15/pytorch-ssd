@@ -647,8 +647,8 @@ if __name__ == '__main__':
         totalavr, totalavrtarget, totalavrtext = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file)
         logging.info(
             f"totalavr: {totalavr}, " +
-            f"totalavr: {totalavrtarget}, " +
-            f"totalavr: {totalavrtext}"
+            f"totalavrtarget: {totalavrtarget}, " +
+            f"totalavrtext: {totalavrtext}"
         )
 
         model_path = targetPath + '/' + args.net + '-' + last
