@@ -396,17 +396,42 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
     totalsumtarget = 0
     totalsumtext = 0
 
+    totalcnt = 0
+    totaltargetcnt = 0
+    totaltextcnt = 0
+
+    matchcnt = 0
+    matchtargetcnt = 0
+    matchtextcnt = 0
+    
+    facnt = 0
+    
     try:
         for i in range(len(dataset)):
             image = dataset.get_image(i)
             a, gtbox, gtlabel = dataset.__getitem__(i)
+
+            currcnt = gtbox.shape[0]
+            currtargetcnt = np.count_nonzero(gtlabel==1)
+            currtextcnt = np.count_nonzero(gtlabel==2)
+            totalcnt = totalcnt + gtbox.shape[0]
+            totaltargetcnt = totaltargetcnt + currtargetcnt
+            totaltextcnt = totaltextcnt + currtextcnt
+
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+            boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
             targetcnt = 0
             textcnt = 0
+
+            predcnt = list(boxes.size())[0]
+            currmatchcnt = 0
+            currmatchtargetcnt = 0
+            currmatchtextcnt = 0
+            
+            currfacnt = 0
 
             for j in range(gtboxes.size(0)):
                 iou = box_utils.iou_of(gtboxes[j], boxes)
@@ -421,20 +446,47 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
                     sumtext = sumtext + xor
                     textcnt = textcnt + 1
 
+                if maxval > iou_treshold:
+                    currmatchcnt = currmatchcnt + 1
+
+                    if gtlabel[j] == 1:
+                        currmatchtargetcnt = currmatchtargetcnt + 1
+                    elif gtlabel[j] == 2:
+                        currmatchtextcnt = currmatchtextcnt + 1
+
             totalsum = totalsum + sum / gtboxes.size(0)
             totalsumtarget = totalsumtarget + sumtarget / targetcnt
             totalsumtext = totalsumtext + sumtext / textcnt
 
+            matchcnt = matchcnt + currmatchcnt
+            matchtargetcnt = matchtargetcnt + currmatchtargetcnt
+            matchtextcnt = matchtextcnt + currmatchtextcnt
+
+            facheck = list(probs > iou_treshold).count(True) - gtboxes.size(0)
+
+            if facheck > 0:
+                facnt = facnt + facheck
+
         retavr = (totalsum/len(dataset)).item()
         retavrtarget = (totalsumtarget/len(dataset)).item()
         retavrtext = (totalsumtext/len(dataset)).item()
+
+        rettotalap = matchcnt/totalcnt
+        rettotaltargetap = matchtargetcnt/totaltargetcnt
+        rettotaltextap = totaltextcnt/totaltextcnt
+        retfacnt = facnt
+
     except:
         retavr = 1.0
         retavrtarget = 1.0
         retavrtext = 1.0
-        
+
+        rettotalap = 0
+        rettotaltargetap = 0
+        rettotaltextap = 0
+        retfacnt = 0
     
-    return retavr, retavrtarget, retavrtext
+    return retavr, retavrtarget, retavrtext, rettotalap, rettotaltargetap, rettotaltextap, retfacnt
 
 if __name__ == '__main__':
     timer = Timer()
@@ -644,11 +696,15 @@ if __name__ == '__main__':
             f"{cname[2]}: {cap[1]:.4f}"
         )
 
-        totalavr, totalavrtarget, totalavrtext = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file)
+        totalavr, totalavrtarget, totalavrtext, totalap, totaltargetap, totaltextap, facnt = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file)
         logging.info(
             f"totalavr: {totalavr}, " +
             f"totalavrtarget: {totalavrtarget}, " +
-            f"totalavrtext: {totalavrtext}"
+            f"totalavrtext: {totalavrtext}, " +
+            f"totalap: {totalap}, " +
+            f"totaltargetap: {totaltargetap}, " +
+            f"totaltextap: {totaltextap}, " +
+            f"facnt: {facnt}"
         )
 
         model_path = targetPath + '/' + args.net + '-' + last
@@ -692,4 +748,8 @@ if __name__ == '__main__':
           tb_writer.add_scalar('box/total', totalavr, epoch)
           tb_writer.add_scalar('box/target', totalavrtarget, epoch)
           tb_writer.add_scalar('box/text', totalavrtext, epoch)
+          tb_writer.add_scalar('box/totalap', totalap, epoch)
+          tb_writer.add_scalar('box/totaltargetap', totaltargetap, epoch)
+          tb_writer.add_scalar('box/totaltextap', totaltextap, epoch)
+          tb_writer.add_scalar('box/facnt', facnt, epoch)
 

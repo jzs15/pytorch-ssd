@@ -10,6 +10,7 @@ import sys
 from vision.datasets.open_images import OpenImagesDataset
 from vision.utils import box_utils, measurements
 import torch
+import numpy as np
 
 
 if len(sys.argv) < 5:
@@ -32,7 +33,7 @@ def cal_boxdiff(predictor, dataset, iou_treshold):
             image = dataset.get_image(i)
             a, gtbox, gtlabel = dataset.__getitem__(i)
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+            boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
@@ -105,7 +106,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
         #predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
         predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE)
         image = dataset.get_image(0)
-        boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
         print(boxes)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
@@ -120,7 +121,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
         image = dataset.get_image(i)
         a, gtbox, gtlabel = dataset.__getitem__(i)
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 10, iou_treshold)
+        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
         print(gtboxes)
         print(boxes)
         sum = 0
@@ -152,6 +153,68 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
     
     return retavr, retavrtarget, retavrtext
 
+def tfpercent(predictor, dataset, iou_treshold):
+    totalcnt = 0
+    totaltargetcnt = 0
+    totaltextcnt = 0
+
+    matchcnt = 0
+    matchtargetcnt = 0
+    matchtextcnt = 0
+    
+    facnt = 0
+
+#    try:
+    for i in range(len(dataset)):
+#    for i in range(1):
+        image = dataset.get_image(i)
+        a, gtbox, gtlabel = dataset.__getitem__(i)
+
+        currcnt = gtbox.shape[0]
+        currtargetcnt = np.count_nonzero(gtlabel==1)
+        currtextcnt = np.count_nonzero(gtlabel==2)
+        totalcnt = totalcnt + gtbox.shape[0]
+        totaltargetcnt = totaltargetcnt + currtargetcnt
+        totaltextcnt = totaltextcnt + currtextcnt
+
+        gtboxes = torch.tensor(gtbox)
+        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
+        
+        predcnt = list(boxes.size())[0]
+        currmatchcnt = 0
+        currmatchtargetcnt = 0
+        currmatchtextcnt = 0
+        
+        currfacnt = 0
+
+        for j in range(gtboxes.size(0)):
+            iou = box_utils.iou_of(gtboxes[j], boxes)
+            maxval = torch.max(iou)
+            
+            if maxval > iou_treshold:
+                currmatchcnt = currmatchcnt + 1
+
+                if gtlabel[j] == 1:
+                    currmatchtargetcnt = currmatchtargetcnt + 1
+                elif gtlabel[j] == 2:
+                    currmatchtextcnt = currmatchtextcnt + 1
+
+        matchcnt = matchcnt + currmatchcnt
+        matchtargetcnt = matchtargetcnt + currmatchtargetcnt
+        matchtextcnt = matchtextcnt + currmatchtextcnt
+        
+        facheck = list(probs > iou_treshold).count(True) - gtboxes.size(0)
+        
+        if facheck > 0:
+            facnt = facnt + facheck
+
+#    except:
+#        retavr = 1.0
+#        retavrtarget = 1.0
+#        retavrtext = 1.0
+        print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)
+    return matchcnt/totalcnt, matchtargetcnt/totaltargetcnt, totaltextcnt/totaltextcnt, facnt
+
 class_names = [name.strip() for name in open(label_path).readlines()]
 
 net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
@@ -169,6 +232,7 @@ predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, devic
 dataset = OpenImagesDataset('/content/dataset', dataset_type="test")
 
 print(cal_boxdiff(predictor, dataset, 0.5))
+print(tfpercent(predictor, dataset, 0.5))
 
 #from types import SimpleNamespace as sn
 
