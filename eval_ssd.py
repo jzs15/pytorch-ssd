@@ -188,18 +188,18 @@ if __name__ == '__main__':
             boxes + 1.0  # matlab's indexes start from 1
         ], dim=1))
     results = torch.cat(results)
-#    for class_index, class_name in enumerate(class_names):
-#        if class_index == 0: continue  # ignore background
-#        prediction_path = eval_path / f"det_test_{class_name}.txt"
-#        with open(prediction_path, "w") as f:
-#            sub = results[results[:, 1] == class_index, :]
-#            for i in range(sub.size(0)):
-#                prob_box = sub[i, 2:].numpy()
-#                image_id = dataset.ids[int(sub[i, 0])]
-#                print(
-#                    image_id + " " + " ".join([str(v) for v in prob_box]),
-#                    file=f
-#                )
+    for class_index, class_name in enumerate(class_names):
+        if class_index == 0: continue  # ignore background
+        prediction_path = eval_path / f"det_test_{class_name}.txt"
+        with open(prediction_path, "w") as f:
+            sub = results[results[:, 1] == class_index, :]
+            for i in range(sub.size(0)):
+                prob_box = sub[i, 2:].numpy()
+                image_id = dataset.ids[int(sub[i, 0])]
+                print(
+                    image_id + " " + " ".join([str(v) for v in prob_box]),
+                    file=f
+                )
     aps = []
     print("\n\nAverage Precision Per-class:")
     for class_index, class_name in enumerate(class_names):
