@@ -473,7 +473,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
 
         rettotalap = matchcnt/totalcnt
         rettotaltargetap = matchtargetcnt/totaltargetcnt
-        rettotaltextap = totaltextcnt/totaltextcnt
+        rettotaltextap = matchtextcnt/totaltextcnt
         retfacnt = facnt
 
     except:
