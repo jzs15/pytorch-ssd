@@ -213,6 +213,7 @@ def tfpercent(predictor, dataset, iou_treshold):
 #        retavrtarget = 1.0
 #        retavrtext = 1.0
 #        print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)
+    print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)    
     return matchcnt/totalcnt, matchtargetcnt/totaltargetcnt, totaltextcnt/totaltextcnt, facnt
 
 class_names = [name.strip() for name in open(label_path).readlines()]
