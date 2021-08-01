@@ -11,17 +11,24 @@ from vision.datasets.open_images import OpenImagesDataset
 from vision.utils import box_utils, measurements
 import torch
 import numpy as np
+import argparse
 
 
-if len(sys.argv) < 5:
-    print('Usage: python run_ssd_example.py <net type>  <model path> <label path> <image path>')
-    sys.exit(0)
-net_type = sys.argv[1]
-model_path = sys.argv[2]
-label_path = sys.argv[3]
-image_path = sys.argv[4]
+parser = argparse.ArgumentParser(description="SSD Evaluation on VOC Dataset.")
+parser.add_argument('--net', default="vgg16-ssd",
+                    help="The network architecture, it should be of mb1-ssd, mb1-ssd-lite, mb2-ssd-lite or vgg16-ssd.")
+parser.add_argument("--trained_model", type=str)
+
+parser.add_argument("--label_file", type=str, help="The label file path.")
+parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
+args = parser.parse_args()
+
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+net_type = args.net
+model_path = args.trained_model
+label_path = args.label_file
 
 def cal_boxdiff(predictor, dataset, iou_treshold):
     totalsum = 0
@@ -214,7 +221,7 @@ def tfpercent(predictor, dataset, iou_treshold):
 #        retavrtext = 1.0
 #        print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)
     print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)    
-    return matchcnt/totalcnt, matchtargetcnt/totaltargetcnt, totaltextcnt/totaltextcnt, facnt
+    return matchcnt/totalcnt, matchtargetcnt/totaltargetcnt, matchtextcnt/totaltextcnt, facnt
 
 class_names = [name.strip() for name in open(label_path).readlines()]
 
@@ -232,8 +239,8 @@ predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, devic
 #dataset = OpenImagesDataset(args.datasets, dataset_type="test")
 dataset = OpenImagesDataset('/content/dataset', dataset_type="test")
 
-print(cal_boxdiff(predictor, dataset, 0.5))
-print(tfpercent(predictor, dataset, 0.5))
+print(cal_boxdiff(predictor, dataset, args.iou_threshold))
+print(tfpercent(predictor, dataset, args.iou_threshold))
 
 #from types import SimpleNamespace as sn
 

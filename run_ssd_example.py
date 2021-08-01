@@ -8,16 +8,25 @@ from vision.utils.misc import Timer
 import cv2
 import sys
 import torch
+import argparse
+
+parser = argparse.ArgumentParser(description="SSD Evaluation on VOC Dataset.")
+parser.add_argument('--net', default="vgg16-ssd",
+                    help="The network architecture, it should be of mb1-ssd, mb1-ssd-lite, mb2-ssd-lite or vgg16-ssd.")
+parser.add_argument("--trained_model", type=str)
+
+parser.add_argument("--label_file", type=str, help="The label file path.")
+parser.add_argument("--image", type=str, help="The image file path.")
+parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
+args = parser.parse_args()
+
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-if len(sys.argv) < 5:
-    print('Usage: python run_ssd_example.py <net type>  <model path> <label path> <image path>')
-    sys.exit(0)
-net_type = sys.argv[1]
-model_path = sys.argv[2]
-label_path = sys.argv[3]
-image_path = sys.argv[4]
+net_type = args.net
+model_path = args.trained_model
+label_path = args.label_file
+image_path = args.image
 
 class_names = [name.strip() for name in open(label_path).readlines()]
 
@@ -56,7 +65,7 @@ else:
 
 orig_image = cv2.imread(image_path)
 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
-boxes, labels, probs = predictor.predict(image, 10, 0.4)
+boxes, labels, probs = predictor.predict(image, 10, args.iou_threshold)
 
 for i in range(boxes.size(0)):
     box = boxes[i, :]
