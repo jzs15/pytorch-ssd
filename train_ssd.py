@@ -20,7 +20,7 @@ from vision.datasets.voc_dataset import VOCDataset
 from vision.datasets.open_images import OpenImagesDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config import vgg_ssd_config
-from vision.ssd.config import mobilenetv1_ssd_config
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 from torch.utils.tensorboard import SummaryWriter
@@ -106,7 +106,9 @@ parser.add_argument('--debug_steps', default=100, type=int,
                     help='Set the debug log output frequency.')
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-
+parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+                    help='Input Image size')
+                    
 parser.add_argument('--checkpoint_folder', default='models/',
                     help='Directory for saving checkpoint models')
 
@@ -516,7 +518,15 @@ if __name__ == '__main__':
         config = mobilenetv1_ssd_config
     elif args.net == 'mb3-small-ssd-lite':
         create_net = lambda num: create_mobilenetv3_small_ssd_lite(num)
-        config = mobilenetv1_ssd_config
+
+        if args.image_size == 240:
+            config = mobilenetv3_ssd_config_240
+        elif args.image_size == 200:
+            config = mobilenetv3_ssd_config_200
+        elif args.image_size == 160:
+            config = mobilenetv3_ssd_config_160
+        else:
+            config = mobilenetv1_ssd_config
     else:
         logging.fatal("The net type is wrong.")
         parser.print_help(sys.stderr)
