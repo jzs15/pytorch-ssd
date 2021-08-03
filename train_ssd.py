@@ -531,6 +531,7 @@ if __name__ == '__main__':
         logging.fatal("The net type is wrong.")
         parser.print_help(sys.stderr)
         sys.exit(1)
+    logging.info(f"imagesize!!!! {config.image_size}")
     train_transform = TrainAugmentation(config.image_size, config.image_mean, config.image_std)
     target_transform = MatchPrior(config.priors, config.center_variance,
                                   config.size_variance, 0.5)
