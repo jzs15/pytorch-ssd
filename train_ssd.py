@@ -108,7 +108,9 @@ parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
 parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
                     help='Input Image size')
-                    
+parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss', 'iou', 'giou', 'diou', 'ciou'],
+                    help='Input Image size')
+
 parser.add_argument('--checkpoint_folder', default='models/',
                     help='Directory for saving checkpoint models')
 
@@ -264,7 +266,7 @@ def test(loader, net, criterion, device):
         running_classification_loss += classification_loss.item()
     return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
-def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
+def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
     dataset = OpenImagesDataset(args.datasets, dataset_type="test")
@@ -281,9 +283,9 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
     elif args.net == 'mb2-ssd-lite':
         net = create_mobilenetv2_ssd_lite(len(class_names), width_mult=args.mb2_width_mult, is_test=True)
     elif args.net == 'mb3-large-ssd-lite':
-        net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
+        net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True, config=config)
     elif args.net == 'mb3-small-ssd-lite':
-        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True, config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -301,7 +303,7 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
     elif args.net == 'sq-ssd-lite':
         predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -352,7 +354,7 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath):
 
     return class_names, aps
 
-def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
+def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
     dataset = OpenImagesDataset(args.datasets, dataset_type="test")
@@ -368,9 +370,9 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
     elif args.net == 'mb2-ssd-lite':
         net = create_mobilenetv2_ssd_lite(len(class_names), width_mult=args.mb2_width_mult, is_test=True)
     elif args.net == 'mb3-large-ssd-lite':
-        net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
+        net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True, config=config)
     elif args.net == 'mb3-small-ssd-lite':
-        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True, config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -388,7 +390,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
     elif args.net == 'sq-ssd-lite':
         predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200, config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -405,9 +407,9 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
     matchcnt = 0
     matchtargetcnt = 0
     matchtextcnt = 0
-    
+
     facnt = 0
-    
+
     try:
         for i in range(len(dataset)):
             image = dataset.get_image(i)
@@ -432,7 +434,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
             currmatchcnt = 0
             currmatchtargetcnt = 0
             currmatchtextcnt = 0
-            
+
             currfacnt = 0
 
             for j in range(gtboxes.size(0)):
@@ -487,7 +489,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file):
         rettotaltargetap = 0
         rettotaltextap = 0
         retfacnt = 0
-    
+
     return retavr, retavrtarget, retavrtext, rettotalap, rettotaltargetap, rettotaltextap, retfacnt
 
 if __name__ == '__main__':
@@ -517,8 +519,6 @@ if __name__ == '__main__':
         create_net = lambda num: create_mobilenetv3_large_ssd_lite(num)
         config = mobilenetv1_ssd_config
     elif args.net == 'mb3-small-ssd-lite':
-        create_net = lambda num: create_mobilenetv3_small_ssd_lite(num)
-
         if args.image_size == 240:
             config = mobilenetv3_ssd_config_240
         elif args.image_size == 200:
@@ -527,6 +527,8 @@ if __name__ == '__main__':
             config = mobilenetv3_ssd_config_160
         else:
             config = mobilenetv1_ssd_config
+
+        create_net = lambda num: create_mobilenetv3_small_ssd_lite(num, config=config)
     else:
         logging.fatal("The net type is wrong.")
         parser.print_help(sys.stderr)
@@ -637,8 +639,9 @@ if __name__ == '__main__':
 
     net.to(DEVICE)
 
+    logging.info(f"Init Loss Function: {args.lossfunc}")
     criterion = MultiboxLoss(config.priors, iou_threshold=0.5, neg_pos_ratio=3,
-                             center_variance=0.1, size_variance=0.2, device=DEVICE)
+                             center_variance=0.1, size_variance=0.2, device=DEVICE, losstype=args.lossfunc)
 #    optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
 #                                weight_decay=args.weight_decay)
     optimizer = RAdam(params, lr=args.lr, betas=(0.9, 0.999), weight_decay=1e-4)
@@ -700,14 +703,14 @@ if __name__ == '__main__':
             f"Validation Classification Loss: {val_classification_loss:.4f}"
         )
 
-        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath)
+        cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath, config)
         logging.info(
             f"map: {sum(cap)/len(cap):.4f}, " +
             f"{cname[1]}: {cap[0]:.4f}, " +
             f"{cname[2]}: {cap[1]:.4f}"
         )
 
-        totalavr, totalavrtarget, totalavrtext, totalap, totaltargetap, totaltextap, facnt = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file)
+        totalavr, totalavrtarget, totalavrtext, totalap, totaltargetap, totaltextap, facnt = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file, config)
         logging.info(
             f"totalavr: {totalavr}, " +
             f"totalavrtarget: {totalavrtarget}, " +
@@ -763,4 +766,3 @@ if __name__ == '__main__':
           tb_writer.add_scalar('box/totaltargetap', totaltargetap, epoch)
           tb_writer.add_scalar('box/totaltextap', totaltextap, epoch)
           tb_writer.add_scalar('box/facnt', facnt, epoch)
-

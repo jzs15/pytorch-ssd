@@ -5,7 +5,7 @@ from ..nn.mobilenet_v2 import MobileNetV2, InvertedResidual
 
 from .ssd import SSD, GraphPath
 from .predictor import Predictor
-from .config import mobilenetv1_ssd_config as config
+from .config import mobilenetv1_ssd_config as localConfig
 
 
 def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, onnx_compatible=False):
@@ -21,7 +21,7 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
     )
 
 
-def create_mobilenetv2_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False):
+def create_mobilenetv2_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False, config=localConfig):
     base_net = MobileNetV2(width_mult=width_mult, use_batch_norm=use_batch_norm,
                            onnx_compatible=onnx_compatible).features
 
@@ -59,7 +59,8 @@ def create_mobilenetv2_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True
                extras, classification_headers, regression_headers, is_test=is_test, config=config)
 
 
-def create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, nms_method=None, sigma=0.5, device=torch.device('cpu')):
+def create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, nms_method=None, sigma=0.5, device=torch.device('cpu'), config=localConfig):
+    print('create_mobilenetv2_ssd_lite_predictor: ', config.image_size)
     predictor = Predictor(net, config.image_size, config.image_mean,
                           config.image_std,
                           nms_method=nms_method,

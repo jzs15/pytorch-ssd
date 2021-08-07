@@ -6,7 +6,7 @@ from ..nn.mobilenetv3 import MobileNetV3_Large, MobileNetV3_Small, Block
 
 from .ssd import SSD
 from .predictor import Predictor
-from .config import mobilenetv1_ssd_config as config
+from .config import mobilenetv1_ssd_config as localConfig
 
 
 def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0, onnx_compatible=False):
@@ -22,7 +22,7 @@ def SeperableConv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=
     )
 
 
-def create_mobilenetv3_large_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False):
+def create_mobilenetv3_large_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False, config=localConfig):
     base_net = MobileNetV3_Large().features
 
     source_layer_indexes = [ 15, 21 ]
@@ -56,7 +56,7 @@ def create_mobilenetv3_large_ssd_lite(num_classes, width_mult=1.0, use_batch_nor
                extras, classification_headers, regression_headers, is_test=is_test, config=config)
 
 
-def create_mobilenetv3_small_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False):
+def create_mobilenetv3_small_ssd_lite(num_classes, width_mult=1.0, use_batch_norm=True, onnx_compatible=False, is_test=False, config=localConfig):
     base_net = MobileNetV3_Small().features
 
     source_layer_indexes = [ 11, 17 ]
@@ -90,7 +90,7 @@ def create_mobilenetv3_small_ssd_lite(num_classes, width_mult=1.0, use_batch_nor
                extras, classification_headers, regression_headers, is_test=is_test, config=config)
 
 
-def create_mobilenetv3_ssd_lite_predictor(net, candidate_size=200, nms_method=None, sigma=0.5, device=torch.device('cpu')):
+def create_mobilenetv3_ssd_lite_predictor(net, candidate_size=200, nms_method=None, sigma=0.5, device=torch.device('cpu'), config=localConfig):
     predictor = Predictor(net, config.image_size, config.image_mean,
                           config.image_std,
                           nms_method=nms_method,
