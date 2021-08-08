@@ -12,6 +12,7 @@ from vision.utils import box_utils, measurements
 import torch
 import numpy as np
 import argparse
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
 
 
 parser = argparse.ArgumentParser(description="SSD Evaluation on VOC Dataset.")
@@ -21,6 +22,8 @@ parser.add_argument("--trained_model", type=str)
 
 parser.add_argument("--label_file", type=str, help="The label file path.")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
+parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+                    help='Input Image size')
 args = parser.parse_args()
 
 
@@ -92,7 +95,16 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
     elif args.net == 'mb3-large-ssd-lite':
         net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
     elif args.net == 'mb3-small-ssd-lite':
-        net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+        if args.image_size == 240:
+            config = mobilenetv3_ssd_config_240
+        elif args.image_size == 200:
+            config = mobilenetv3_ssd_config_200
+        elif args.image_size == 160:
+            config = mobilenetv3_ssd_config_160
+        else:
+            config = mobilenetv1_ssd_config
+
+        net = create_mobilenetv3_small_ssd_lite(len(class_names), config=config, is_test=True)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -111,7 +123,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
         predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
         #predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
         image = dataset.get_image(0)
         boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
         print(boxes)
@@ -225,10 +237,19 @@ def tfpercent(predictor, dataset, iou_treshold):
 
 class_names = [name.strip() for name in open(label_path).readlines()]
 
-net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+if args.image_size == 240:
+    config = mobilenetv3_ssd_config_240
+elif args.image_size == 200:
+    config = mobilenetv3_ssd_config_200
+elif args.image_size == 160:
+    config = mobilenetv3_ssd_config_160
+else:
+    config = mobilenetv1_ssd_config
+
+net = create_mobilenetv3_small_ssd_lite(len(class_names), config=config, is_test=True)
 net.load(model_path)
 net.to(DEVICE)
-predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE)
+predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
 
 #config = mobilenetv1_ssd_config
 #test_transform = TestTransform(config.image_size, config.image_mean, config.image_std)
