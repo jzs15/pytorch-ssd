@@ -1,11 +1,21 @@
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
-
+import math
 
 from ..utils import box_utils
 
+def swap(inputBox):
+    x1 = torch.min(inputBox[:, 0], inputBox[:, 2])
+    y1 = torch.min(inputBox[:, 1], inputBox[:, 3])
+    x2 = torch.max(inputBox[:, 0], inputBox[:, 2])
+    y2 = torch.max(inputBox[:, 1], inputBox[:, 3])
+
+    return torch.stack([x1, y1, x2, y2], dim=1)
+
 def bbox_overlaps_diou(bboxes1, bboxes2):
+    bboxes1 = swap(bboxes1)
+    bboxes2 = swap(bboxes2)
 
     rows = bboxes1.shape[0]
     cols = bboxes2.shape[0]
@@ -48,6 +58,9 @@ def bbox_overlaps_diou(bboxes1, bboxes2):
     return dious
 
 def bbox_overlaps_ciou(bboxes1, bboxes2):
+    bboxes1 = swap(bboxes1)
+    bboxes2 = swap(bboxes2)
+
     rows = bboxes1.shape[0]
     cols = bboxes2.shape[0]
     cious = torch.zeros((rows, cols))
@@ -96,6 +109,9 @@ def bbox_overlaps_ciou(bboxes1, bboxes2):
     return cious
 
 def bbox_overlaps_iou(bboxes1, bboxes2):
+    bboxes1 = swap(bboxes1)
+    bboxes2 = swap(bboxes2)
+
     rows = bboxes1.shape[0]
     cols = bboxes2.shape[0]
     ious = torch.zeros((rows, cols))
@@ -124,6 +140,9 @@ def bbox_overlaps_iou(bboxes1, bboxes2):
     return ious
 
 def bbox_overlaps_giou(bboxes1, bboxes2):
+    bboxes1 = swap(bboxes1)
+    bboxes2 = swap(bboxes2)
+
     rows = bboxes1.shape[0]
     cols = bboxes2.shape[0]
     ious = torch.zeros((rows, cols))
@@ -140,11 +159,8 @@ def bbox_overlaps_giou(bboxes1, bboxes2):
         bboxes2[:, 3] - bboxes2[:, 1])
 
     inter_max_xy = torch.min(bboxes1[:, 2:],bboxes2[:, 2:])
-
     inter_min_xy = torch.max(bboxes1[:, :2],bboxes2[:, :2])
-
     out_max_xy = torch.max(bboxes1[:, 2:],bboxes2[:, 2:])
-
     out_min_xy = torch.min(bboxes1[:, :2],bboxes2[:, :2])
 
     inter = torch.clamp((inter_max_xy - inter_min_xy), min=0)
@@ -166,11 +182,8 @@ class IouLoss(nn.Module):
         super(IouLoss, self).__init__()
         self.loss = losstype
     def forward(self, pred, gt):
-#        print(pred.size())
-#        print(gt.size())
         num = pred.shape[0]
 
-#        print('num: ', num)
         if self.loss == 'iou':
             loss = torch.sum(1.0 - bbox_overlaps_iou(pred, gt))
         elif self.loss == 'giou':
@@ -182,7 +195,6 @@ class IouLoss(nn.Module):
         else:
             loss = 0
 
-#        print('loss: ', loss)
         return loss
 
 class MultiboxLoss(nn.Module):

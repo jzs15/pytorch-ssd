@@ -226,6 +226,7 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         labels = labels.to(device)
         num += 1
 
+#        print('train box: ', boxes)
         optimizer.zero_grad()
         confidence, locations = net(images)
         regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)  # TODO CHANGE BOXES
