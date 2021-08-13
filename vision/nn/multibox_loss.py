@@ -2,15 +2,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch
 import math
+import numpy as np
 
 from ..utils import box_utils
 
 def swap(inputBox):
+#    x1 = inputBox[:, 0]
+#    y1 = inputBox[:, 1]
+#    x2 = inputBox[:, 2]
+#    y2 = inputBox[:, 3]
+
     x1 = torch.min(inputBox[:, 0], inputBox[:, 2])
     y1 = torch.min(inputBox[:, 1], inputBox[:, 3])
     x2 = torch.max(inputBox[:, 0], inputBox[:, 2])
     y2 = torch.max(inputBox[:, 1], inputBox[:, 3])
 
+#    return torch.stack([x1, y2, x2, y1], dim=1)
     return torch.stack([x1, y1, x2, y2], dim=1)
 
 def bbox_overlaps_diou(bboxes1, bboxes2):
@@ -98,6 +105,7 @@ def bbox_overlaps_ciou(bboxes1, bboxes2):
     union = area1+area2-inter_area
     u = (inter_diag) / outer_diag
     iou = inter_area / union
+
     v = (4 / (math.pi ** 2)) * torch.pow((torch.atan(w2 / h2) - torch.atan(w1 / h1)), 2)
     with torch.no_grad():
         S = 1 - iou
@@ -238,7 +246,11 @@ class MultiboxLoss(nn.Module):
             smooth_l1_loss = F.smooth_l1_loss(predicted_locations, gt_locations, size_average=False)
         else:
             lossfunc = IouLoss(losstype = self.losstype)
-            smooth_l1_loss = lossfunc(predicted_locations, gt_locations)
+            convboxes1 = box_utils.convert_locations_to_boxes(predicted_locations, gt_locations, self.center_variance, self.size_variance)
+            convboxes1 = box_utils.center_form_to_corner_form(convboxes1)
+            convboxes2 = box_utils.convert_locations_to_boxes(gt_locations, gt_locations, self.center_variance, self.size_variance)
+            convboxes2 = box_utils.center_form_to_corner_form(convboxes2)
+            smooth_l1_loss = lossfunc(convboxes1, convboxes2)
 
         num_pos = gt_locations.size(0)
         return smooth_l1_loss/num_pos, classification_loss/num_pos

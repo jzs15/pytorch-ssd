@@ -231,6 +231,15 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         confidence, locations = net(images)
         regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)  # TODO CHANGE BOXES
         loss = regression_loss + classification_loss
+        print('train loss: ', loss.item())
+        skip = False
+        if torch.isnan(loss) == True:
+            skip = True
+
+        if skip == True:
+            print('skip this loss!')
+            continue
+
         loss.backward()
         optimizer.step()
 
