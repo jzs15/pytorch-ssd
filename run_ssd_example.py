@@ -4,6 +4,7 @@ from vision.ssd.mobilenetv1_ssd_lite import create_mobilenetv1_ssd_lite, create_
 from vision.ssd.squeezenet_ssd_lite import create_squeezenet_ssd_lite, create_squeezenet_ssd_lite_predictor
 from vision.ssd.mobilenet_v2_ssd_lite import create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor
 from vision.ssd.mobilenetv3_ssd_lite import create_mobilenetv3_large_ssd_lite, create_mobilenetv3_small_ssd_lite
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
 from vision.utils.misc import Timer
 import cv2
 import sys
@@ -18,6 +19,8 @@ parser.add_argument("--trained_model", type=str)
 parser.add_argument("--label_file", type=str, help="The label file path.")
 parser.add_argument("--image", type=str, help="The image file path.")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
+parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+                    help='Input Image size')
 args = parser.parse_args()
 
 
@@ -41,7 +44,16 @@ elif net_type == 'mb2-ssd-lite':
 elif net_type == 'mb3-large-ssd-lite':
     net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
 elif net_type == 'mb3-small-ssd-lite':
-    net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True)
+    if args.image_size == 240:
+        config = mobilenetv3_ssd_config_240
+    elif args.image_size == 200:
+        config = mobilenetv3_ssd_config_200
+    elif args.image_size == 160:
+        config = mobilenetv3_ssd_config_160
+    else:
+        config = mobilenetv1_ssd_config
+
+    net = create_mobilenetv3_small_ssd_lite(len(class_names), is_test=True, config=config)
 elif net_type == 'sq-ssd-lite':
     net = create_squeezenet_ssd_lite(len(class_names), is_test=True)
 else:
@@ -57,7 +69,7 @@ elif net_type == 'mb1-ssd':
 elif net_type == 'mb1-ssd-lite':
     predictor = create_mobilenetv1_ssd_lite_predictor(net, candidate_size=200)
 elif net_type == 'mb2-ssd-lite' or net_type == "mb3-large-ssd-lite" or net_type == "mb3-small-ssd-lite":
-    predictor = create_mobilenetv2_ssd_lite_predictor(net, device=DEVICE, candidate_size=200)
+    predictor = create_mobilenetv2_ssd_lite_predictor(net, device=DEVICE, candidate_size=200, config=config)
 elif net_type == 'sq-ssd-lite':
     predictor = create_squeezenet_ssd_lite_predictor(net, candidate_size=200)
 else:
