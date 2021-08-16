@@ -224,7 +224,6 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         images = images.to(device)
         boxes = boxes.to(device)
         labels = labels.to(device)
-        num += 1
 
 #        print('train box: ', boxes)
         optimizer.zero_grad()
@@ -237,9 +236,10 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
             skip = True
 
         if skip == True:
-            print('skip this loss!')
+            print('skip this train loss!')
             continue
 
+        num += 1
         loss.backward()
         optimizer.step()
 
@@ -264,12 +264,21 @@ def test(loader, net, criterion, device):
         images = images.to(device)
         boxes = boxes.to(device)
         labels = labels.to(device)
-        num += 1
 
         with torch.no_grad():
             confidence, locations = net(images)
             regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)
             loss = regression_loss + classification_loss
+
+        skip = False
+        if torch.isnan(loss) == True:
+            skip = True
+
+        if skip == True:
+            print('skip this test loss!')
+            continue
+
+        num += 1
 
         running_loss += loss.item()
         running_regression_loss += regression_loss.item()
@@ -698,7 +707,6 @@ if __name__ == '__main__':
     for epoch in range(last_epoch + 1, args.num_epochs):
         train_loss, train_regression_loss, train_classification_loss = train(train_loader, net, criterion, optimizer,
               device=DEVICE, epoch=epoch, tb_writer=tb_writer)
-        scheduler.step()
         logging.info(
             f"Epoch: {epoch}, " +
             f"Train Loss: {train_loss:.4f}, " +
@@ -712,6 +720,18 @@ if __name__ == '__main__':
             f"Validation Regression Loss {val_regression_loss:.4f}, " +
             f"Validation Classification Loss: {val_classification_loss:.4f}"
         )
+
+        skip = False
+        if np.isnan(train_loss) == True:
+            skip = True
+        if np.isnan(val_loss) == True:
+            skip = True
+
+        if skip == True:
+            print('skip this epoch!')
+            continue
+
+        scheduler.step()
 
         cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath, config)
         logging.info(
