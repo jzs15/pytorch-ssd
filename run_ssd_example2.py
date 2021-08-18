@@ -43,7 +43,7 @@ def cal_boxdiff(predictor, dataset, iou_threshold):
             image = dataset.get_image(i)
             a, gtbox, gtlabel = dataset.__getitem__(i)
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+            boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
@@ -125,7 +125,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_threshold, label_file):
         #predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
         predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
         image = dataset.get_image(0)
-        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+        boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
         print(boxes)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
@@ -140,7 +140,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_threshold, label_file):
         image = dataset.get_image(i)
         a, gtbox, gtlabel = dataset.__getitem__(i)
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+        boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
         print(gtboxes)
         print(boxes)
         sum = 0
@@ -197,7 +197,7 @@ def tfpercent(predictor, dataset, iou_threshold):
         totaltextcnt = totaltextcnt + currtextcnt
 
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+        boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
 
         predcnt = list(boxes.size())[0]
         currmatchcnt = 0
@@ -249,7 +249,6 @@ else:
 net = create_mobilenetv3_small_ssd_lite(len(class_names), config=config, is_test=True)
 net.load(model_path)
 net.to(DEVICE)
-config.iou_threshold = args.iou_threshold
 predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
 
 #config = mobilenetv1_ssd_config
