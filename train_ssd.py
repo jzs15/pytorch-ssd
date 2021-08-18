@@ -373,7 +373,7 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, co
 
     return class_names, aps
 
-def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file, config):
+def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
     dataset = OpenImagesDataset(args.datasets, dataset_type="test")
@@ -442,7 +442,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file, config):
             totaltextcnt = totaltextcnt + currtextcnt
 
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
+            boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
@@ -469,7 +469,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file, config):
                     sumtext = sumtext + xor
                     textcnt = textcnt + 1
 
-                if maxval > iou_treshold:
+                if maxval > iou_threshold:
                     currmatchcnt = currmatchcnt + 1
 
                     if gtlabel[j] == 1:
@@ -485,7 +485,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_treshold, label_file, config):
             matchtargetcnt = matchtargetcnt + currmatchtargetcnt
             matchtextcnt = matchtextcnt + currmatchtextcnt
 
-            facheck = list(probs > iou_treshold).count(True) - gtboxes.size(0)
+            facheck = list(probs > iou_threshold).count(True) - gtboxes.size(0)
 
             if facheck > 0:
                 facnt = facnt + facheck

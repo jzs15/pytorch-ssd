@@ -33,7 +33,7 @@ net_type = args.net
 model_path = args.trained_model
 label_path = args.label_file
 
-def cal_boxdiff(predictor, dataset, iou_treshold):
+def cal_boxdiff(predictor, dataset, iou_threshold):
     totalsum = 0
     totalsumtarget = 0
     totalsumtext = 0
@@ -43,7 +43,7 @@ def cal_boxdiff(predictor, dataset, iou_treshold):
             image = dataset.get_image(i)
             a, gtbox, gtlabel = dataset.__getitem__(i)
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
+            boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
@@ -74,10 +74,10 @@ def cal_boxdiff(predictor, dataset, iou_treshold):
         retavr = 1.0
         retavrtarget = 1.0
         retavrtext = 1.0
-    
+
     return retavr, retavrtarget, retavrtext
 
-def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
+def cal_boxdiff2(args, net_state_dict, DEVICE, iou_threshold, label_file):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
     dataset = OpenImagesDataset(args.datasets, dataset_type="test")
@@ -125,7 +125,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
         #predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
         predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
         image = dataset.get_image(0)
-        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
+        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
         print(boxes)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
@@ -140,7 +140,7 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
         image = dataset.get_image(i)
         a, gtbox, gtlabel = dataset.__getitem__(i)
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
+        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
         print(gtboxes)
         print(boxes)
         sum = 0
@@ -169,10 +169,10 @@ def cal_boxdiff2(args, net_state_dict, DEVICE, iou_treshold, label_file):
     retavr = (totalsum/len(dataset)).item()
     retavrtarget = (totalsumtarget/len(dataset)).item()
     retavrtext = (totalsumtext/len(dataset)).item()
-    
+
     return retavr, retavrtarget, retavrtext
 
-def tfpercent(predictor, dataset, iou_treshold):
+def tfpercent(predictor, dataset, iou_threshold):
     totalcnt = 0
     totaltargetcnt = 0
     totaltextcnt = 0
@@ -180,7 +180,7 @@ def tfpercent(predictor, dataset, iou_treshold):
     matchcnt = 0
     matchtargetcnt = 0
     matchtextcnt = 0
-    
+
     facnt = 0
 
 #    try:
@@ -197,20 +197,20 @@ def tfpercent(predictor, dataset, iou_treshold):
         totaltextcnt = totaltextcnt + currtextcnt
 
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 20, iou_treshold)
-        
+        boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+
         predcnt = list(boxes.size())[0]
         currmatchcnt = 0
         currmatchtargetcnt = 0
         currmatchtextcnt = 0
-        
+
         currfacnt = 0
 
         for j in range(gtboxes.size(0)):
             iou = box_utils.iou_of(gtboxes[j], boxes)
             maxval = torch.max(iou)
-            
-            if maxval > iou_treshold:
+
+            if maxval > iou_threshold:
                 currmatchcnt = currmatchcnt + 1
 
                 if gtlabel[j] == 1:
@@ -221,9 +221,9 @@ def tfpercent(predictor, dataset, iou_treshold):
         matchcnt = matchcnt + currmatchcnt
         matchtargetcnt = matchtargetcnt + currmatchtargetcnt
         matchtextcnt = matchtextcnt + currmatchtextcnt
-        
-        facheck = list(probs > iou_treshold).count(True) - gtboxes.size(0)
-        
+
+        facheck = list(probs > iou_threshold).count(True) - gtboxes.size(0)
+
         if facheck > 0:
             facnt = facnt + facheck
 
@@ -232,7 +232,7 @@ def tfpercent(predictor, dataset, iou_treshold):
 #        retavrtarget = 1.0
 #        retavrtext = 1.0
 #        print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)
-    print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)    
+    print(totalcnt, totaltargetcnt, totaltextcnt, matchcnt, matchtargetcnt, matchtextcnt, facnt)
     return matchcnt/totalcnt, matchtargetcnt/totaltargetcnt, matchtextcnt/totaltextcnt, facnt
 
 class_names = [name.strip() for name in open(label_path).readlines()]
@@ -249,6 +249,7 @@ else:
 net = create_mobilenetv3_small_ssd_lite(len(class_names), config=config, is_test=True)
 net.load(model_path)
 net.to(DEVICE)
+config.iou_threshold = args.iou_threshold
 predictor = create_mobilenetv2_ssd_lite_predictor(net, candidate_size=200, device=DEVICE, config=config)
 
 #config = mobilenetv1_ssd_config

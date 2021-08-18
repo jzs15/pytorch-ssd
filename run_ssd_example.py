@@ -69,6 +69,7 @@ elif net_type == 'mb1-ssd':
 elif net_type == 'mb1-ssd-lite':
     predictor = create_mobilenetv1_ssd_lite_predictor(net, candidate_size=200)
 elif net_type == 'mb2-ssd-lite' or net_type == "mb3-large-ssd-lite" or net_type == "mb3-small-ssd-lite":
+    config.iou_threshold = args.iou_threshold
     predictor = create_mobilenetv2_ssd_lite_predictor(net, device=DEVICE, candidate_size=200, config=config)
 elif net_type == 'sq-ssd-lite':
     predictor = create_squeezenet_ssd_lite_predictor(net, candidate_size=200)
@@ -77,7 +78,7 @@ else:
 
 orig_image = cv2.imread(image_path)
 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
-boxes, labels, probs = predictor.predict(image, 10, args.iou_threshold)
+boxes, labels, probs = predictor.predict(image, 20)
 
 for i in range(boxes.size(0)):
     box = boxes[i, :]
