@@ -523,7 +523,9 @@ if __name__ == '__main__':
 
     best = 'best.pt'
     last = 'last.pt'
+    bestiou = 'bestiou.pt'
     best_loss = 100.0
+    best_iou = 1.0
 
     logging.info(args)
     if args.net == 'vgg16-ssd':
@@ -773,8 +775,24 @@ if __name__ == '__main__':
         if best_loss > val_loss:
           best_loss = val_loss
 
+        if best_iou > totalavr:
+          best_iou = totalavr
+
         if best_loss == val_loss:
           model_path = targetPath + '/' + args.net + "-" + best
+          #torch.save(net.state_dict(), model_path)
+          torch.save({
+              'epoch': epoch,
+              'model_state_dict': net.state_dict(),
+              'optimizer_state_dict': optimizer.state_dict(),
+              'scheduler_state_dict': scheduler.state_dict(),
+              'val_regression_loss': val_regression_loss,
+              'val_classification_loss': val_classification_loss
+              }, model_path)
+          logging.info(f"Saved model {model_path}")
+
+        if best_iou == totalavr:
+          model_path = targetPath + '/' + args.net + "-" + bestiou
           #torch.save(net.state_dict(), model_path)
           torch.save({
               'epoch': epoch,
