@@ -250,7 +250,10 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         if epoch == 1:
             tb_writer.add_graph(torch.jit.trace(de_parallel(net), images, strict=False), [])  # graph
 
-    return running_loss / num, running_regression_loss / num, running_classification_loss / num
+    if num == 0:
+        return float('nan'), float('nan'), float('nan')
+    else:
+       return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
 
 def test(loader, net, criterion, device):
@@ -283,7 +286,11 @@ def test(loader, net, criterion, device):
         running_loss += loss.item()
         running_regression_loss += regression_loss.item()
         running_classification_loss += classification_loss.item()
-    return running_loss / num, running_regression_loss / num, running_classification_loss / num
+
+    if num == 0:
+        return float('nan'), float('nan'), float('nan')
+    else:
+        return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
 def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
