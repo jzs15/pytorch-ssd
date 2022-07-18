@@ -296,6 +296,7 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, co
     class_names = [name.strip() for name in open(label_file).readlines()]
 
     dataset = OpenImagesDataset(args.datasets, dataset_type="test")
+    logging.info("test dataset size: {}".format(len(dataset)))
     true_case_stat, all_gb_boxes, all_difficult_cases = group_annotation_by_class(dataset)
 
     if args.net == 'vgg16-ssd':
@@ -524,8 +525,10 @@ if __name__ == '__main__':
     best = 'best.pt'
     last = 'last.pt'
     bestiou = 'bestiou.pt'
+    bestap = 'bestap.pt'
     best_loss = 100.0
     best_iou = 1.0
+    best_ap = 0
 
     logging.info(args)
     if args.net == 'vgg16-ssd':
@@ -604,7 +607,7 @@ if __name__ == '__main__':
     elif args.dataset_type == 'open_images':
         val_dataset = OpenImagesDataset(args.datasets,
                                         transform=test_transform, target_transform=target_transform,
-                                        dataset_type="test")
+                                        dataset_type="validation")
         logging.info(val_dataset)
 
     logging.info("validation dataset size: {}".format(len(val_dataset)))
@@ -778,6 +781,10 @@ if __name__ == '__main__':
         if best_iou > totalavr:
           best_iou = totalavr
 
+        cur_ap = sum(cap)/len(cap)
+        if best_ap < cur_ap:
+          best_ap = cur_ap
+
         if best_loss == val_loss:
           model_path = targetPath + '/' + args.net + "-" + best
           #torch.save(net.state_dict(), model_path)
@@ -793,6 +800,19 @@ if __name__ == '__main__':
 
         if best_iou == totalavr:
           model_path = targetPath + '/' + args.net + "-" + bestiou
+          #torch.save(net.state_dict(), model_path)
+          torch.save({
+              'epoch': epoch,
+              'model_state_dict': net.state_dict(),
+              'optimizer_state_dict': optimizer.state_dict(),
+              'scheduler_state_dict': scheduler.state_dict(),
+              'val_regression_loss': val_regression_loss,
+              'val_classification_loss': val_classification_loss
+              }, model_path)
+          logging.info(f"Saved model {model_path}")
+
+        if best_ap == cur_ap:
+          model_path = targetPath + '/' + args.net + "-" + bestap
           #torch.save(net.state_dict(), model_path)
           torch.save({
               'epoch': epoch,
