@@ -450,7 +450,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
             totaltextcnt = totaltextcnt + currtextcnt
 
             gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
+            boxes, labels, probs = predictor.predict(image, 30, iou_threshold)
             sum = 0
             sumtarget = 0
             sumtext = 0
@@ -463,6 +463,8 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
             currmatchtextcnt = 0
 
             currfacnt = 0
+
+            print("INFO(Bug Fix): CP1")
 
             for j in range(gtboxes.size(0)):
                 iou = box_utils.iou_of(gtboxes[j], boxes)
@@ -485,6 +487,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
                     elif gtlabel[j] == 2:
                         currmatchtextcnt = currmatchtextcnt + 1
 
+            print("INFO(Bug Fix): CP2")
             totalsum = totalsum + sum / gtboxes.size(0)
             totalsumtarget = totalsumtarget + sumtarget / targetcnt
             totalsumtext = totalsumtext + sumtext / textcnt
@@ -495,9 +498,12 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
 
             facheck = list(probs > iou_threshold).count(True) - gtboxes.size(0)
 
+            print("INFO(Bug Fix): CP3")
+
             if facheck > 0:
                 facnt = facnt + facheck
 
+        print("INFO(Bug Fix): CP4")
         retavr = (totalsum/len(dataset)).item()
         retavrtarget = (totalsumtarget/len(dataset)).item()
         retavrtext = (totalsumtext/len(dataset)).item()
@@ -506,6 +512,8 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         rettotaltargetap = matchtargetcnt/totaltargetcnt
         rettotaltextap = matchtextcnt/totaltextcnt
         retfacnt = facnt
+
+        print("INFO(Bug Fix): CP5")
 
     except:
         retavr = 1.0
@@ -516,6 +524,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         rettotaltargetap = 0
         rettotaltextap = 0
         retfacnt = 0
+        print("INFO(Bug Fix): except 발생")
 
     return retavr, retavrtarget, retavrtext, rettotalap, rettotaltargetap, rettotaltextap, retfacnt
 
