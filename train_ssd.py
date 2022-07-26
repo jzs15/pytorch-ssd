@@ -467,18 +467,22 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
             print("INFO(Bug Fix): CP1")
 
             for j in range(gtboxes.size(0)):
+                print("INFO(Bug Fix): CP1-1")
                 iou = box_utils.iou_of(gtboxes[j], boxes)
+
+                print("INFO(Bug Fix): CP1-2")
                 maxval = torch.max(iou)
                 xor = 1 - maxval
                 sum = sum + xor
 
+                print("INFO(Bug Fix): CP1-3")
                 if gtlabel[j] == 1:
                     sumtarget = sumtarget + xor
                     targetcnt = targetcnt + 1
                 elif gtlabel[j] == 2:
                     sumtext = sumtext + xor
                     textcnt = textcnt + 1
-
+                print("INFO(Bug Fix): CP1-4")
                 if maxval > iou_threshold:
                     currmatchcnt = currmatchcnt + 1
 
@@ -486,6 +490,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
                         currmatchtargetcnt = currmatchtargetcnt + 1
                     elif gtlabel[j] == 2:
                         currmatchtextcnt = currmatchtextcnt + 1
+                print("INFO(Bug Fix): CP1-5")
 
             print("INFO(Bug Fix): CP2")
             totalsum = totalsum + sum / gtboxes.size(0)
