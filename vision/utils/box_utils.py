@@ -139,9 +139,7 @@ def iou_of(boxes0, boxes1, eps=1e-5):
         eps: a small number to avoid 0 as denominator.
     Returns:
         iou (N): IoU values.
-    """
-    print(f'INFO(Bug Fix): boxes0: {boxes0.shape}')
-    print(f'INFO(Bug Fix): boxes1: {boxes1.shape}')
+    """z
     overlap_left_top = torch.max(boxes0[..., :2], boxes1[..., :2])
     overlap_right_bottom = torch.min(boxes0[..., 2:], boxes1[..., 2:])
 
