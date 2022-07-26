@@ -46,6 +46,7 @@ class Predictor:
         picked_box_probs = []
         picked_labels = []
         print(f'INFO(Bug Fix): CP2')
+        print(f'INFO(Bug Fix): scores:{scores.size()}')
         for class_index in range(1, scores.size(1)):
             probs = scores[:, class_index]
             mask = probs > prob_threshold
