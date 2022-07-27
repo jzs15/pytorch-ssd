@@ -45,28 +45,20 @@ class Predictor:
         scores = scores.to(cpu_device)
         picked_box_probs = []
         picked_labels = []
-        print(f'INFO(Bug Fix): CP2')
-        print(f'INFO(Bug Fix): scores:{scores.size()}')
         for class_index in range(1, scores.size(1)):
             probs = scores[:, class_index]
             mask = probs > prob_threshold
             probs = probs[mask]
-            print(f'INFO(Bug Fix): CP3')
-            print(f'INFO(Bug Fix): probs:{probs.size(0)}')
             if probs.size(0) == 0:
                 continue
             subset_boxes = boxes[mask, :]
-            print(f'INFO(Bug Fix): subset_boxes:{subset_boxes.size(0)}')
             box_probs = torch.cat([subset_boxes, probs.reshape(-1, 1)], dim=1)
-            print(f'INFO(Bug Fix): box_probs1:{box_probs.size(0)}')
             box_probs = box_utils.nms(box_probs, self.nms_method,
                                       score_threshold=prob_threshold,
                                       iou_threshold=self.iou_threshold,
                                       sigma=self.sigma,
                                       top_k=top_k,
                                       candidate_size=self.candidate_size)
-
-            print(f'INFO(Bug Fix): box_probs2:{box_probs.size(0)}')
             picked_box_probs.append(box_probs)
             picked_labels.extend([class_index] * box_probs.size(0))
         if not picked_box_probs:

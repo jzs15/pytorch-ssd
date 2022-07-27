@@ -4,7 +4,8 @@ from vision.ssd.mobilenetv1_ssd_lite import create_mobilenetv1_ssd_lite, create_
 from vision.ssd.squeezenet_ssd_lite import create_squeezenet_ssd_lite, create_squeezenet_ssd_lite_predictor
 from vision.ssd.mobilenet_v2_ssd_lite import create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor
 from vision.ssd.mobilenetv3_ssd_lite import create_mobilenetv3_large_ssd_lite, create_mobilenetv3_small_ssd_lite
-from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
+    mobilenetv3_ssd_config_160
 from vision.utils.misc import Timer
 import cv2
 import sys
@@ -22,7 +23,6 @@ parser.add_argument("--iou_threshold", type=float, default=0.5, help="The thresh
 parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
                     help='Input Image size')
 args = parser.parse_args()
-
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -78,17 +78,29 @@ else:
 orig_image = cv2.imread(image_path)
 image = cv2.cvtColor(orig_image, cv2.COLOR_BGR2RGB)
 boxes, labels, probs = predictor.predict(image, -1, args.iou_threshold)
+colors = [
+    (255, 255, 255),
+    (255, 0, 0),
+    (0, 0, 255),
+    (0, 255, 255)
+]
 
 for i in range(boxes.size(0)):
     box = boxes[i, :]
-    cv2.rectangle(orig_image, (box[0], box[1]), (box[2], box[3]), (255, 255, 255), 10)
-    #label = f"""{voc_dataset.class_names[labels[i]]}: {probs[i]:.2f}"""
+
+    if labels[i] >= len(colors):
+        color = colors[-1]
+    else:
+        color = colors[labels[i]]
+
+    cv2.rectangle(orig_image, (box[0], box[1]), (box[2], box[3]), color, 10)
+    # label = f"""{voc_dataset.class_names[labels[i]]}: {probs[i]:.2f}"""
     label = f"{class_names[labels[i]]}: {probs[i]:.2f}"
     cv2.putText(orig_image, label,
                 (box[0] + 20, box[1] + 40),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 2,  # font scale
-                (255, 255, 255),
+                color,
                 8)  # line type
 path = "run_ssd_example_output.jpg"
 cv2.imwrite(path, orig_image)

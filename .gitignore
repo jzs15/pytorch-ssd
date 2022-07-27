@@ -5,6 +5,8 @@ models
 
 eval_results/
 
+content/
+
 # Pytorch Models
 *.pth
 
