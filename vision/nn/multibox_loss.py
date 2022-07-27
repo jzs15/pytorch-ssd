@@ -238,7 +238,7 @@ class MultiboxLoss(nn.Module):
             mask = box_utils.hard_negative_mining(loss, labels, self.neg_pos_ratio)
 
         confidence = confidence[mask, :]
-        weights = torch.FloatTensor([1 / 100, 30 / 100, 69 / 100]).cuda()
+        weights = torch.FloatTensor([1 / 100, 30 / 100, 69 / 100])
         classification_loss = F.cross_entropy(confidence.reshape(-1, num_classes), labels[mask],
                                               weight=weights, size_average=False)
         pos_mask = labels > 0
