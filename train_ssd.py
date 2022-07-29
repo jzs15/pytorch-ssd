@@ -508,6 +508,8 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         if facheck > 0:
             facnt = facnt + facheck
 
+    if isinstance(totalsum, float):
+        print(f'INFO(BUG FIX): totalsum SKIP')
     retavr = (totalsum / len(dataset)).item()
     print(f'INFO(BUG FIX): totalsum: {totalsum}  {len(dataset)}  {(totalsum / len(dataset)).item()}')
     retavrtarget = (totalsumtarget / len(dataset)).item()
