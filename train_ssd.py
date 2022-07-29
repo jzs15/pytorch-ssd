@@ -442,7 +442,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     matchtextcnt = 0
 
     facnt = 0
-
+    print(f'INFO(BUG FIX): CP1: {len(dataset)}')
     for i in range(len(dataset)):
         image = dataset.get_image(i)
         a, gtbox, gtlabel = dataset.__getitem__(i)
@@ -471,12 +471,13 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
 
         if boxes.shape[0] == 0:
             continue
-
+        print(f'INFO(BUG FIX): CP2: {boxes.shape[0]}')
         for j in range(gtboxes.size(0)):
             iou = box_utils.iou_of(gtboxes[j], boxes)
             maxval = torch.max(iou)
             xor = 1 - maxval
             sum = sum + xor
+            print(f'INFO(BUG FIX): CP3: {sum}')
 
             if gtlabel[j] == 1:
                 sumtarget = sumtarget + xor
@@ -510,7 +511,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
 
     print(f'INFO(BUG FIX): {type(totalsum)}')
     if isinstance(totalsum, float) or isinstance(totalsum, int):
-        print(f'INFO(BUG FIX): totalsum SKIP')
+        print(f'INFO(BUG FIX): totalsum SKIP: {totalsum}')
         return 1.0, 1.0, 1.0, 0, 0, 0, 0
     retavr = (totalsum / len(dataset)).item()
     print(f'INFO(BUG FIX): totalsum: {totalsum}  {len(dataset)}  {(totalsum / len(dataset)).item()}')
