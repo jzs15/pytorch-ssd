@@ -455,7 +455,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         totaltextcnt = totaltextcnt + currtextcnt
 
         gtboxes = torch.tensor(gtbox)
-        boxes, labels, probs = predictor.predict(image, 30, iou_threshold)
+        boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
         sum = 0
         sumtarget = 0
         sumtext = 0
@@ -470,6 +470,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         currfacnt = 0
 
         if boxes.shape[0] == 0:
+            print(f'INFO(BUG FIX): CP X')
             continue
         print(f'INFO(BUG FIX): CP2: {boxes.shape[0]}')
         for j in range(gtboxes.size(0)):
@@ -512,7 +513,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     print(f'INFO(BUG FIX): {type(totalsum)}')
     if isinstance(totalsum, float) or isinstance(totalsum, int):
         print(f'INFO(BUG FIX): totalsum SKIP: {totalsum}')
-        return 1.0, 1.0, 1.0, 0, 0, 0, 0
+        return 0.0, 0.0, 0.0, 0, 0, 0, 0
     retavr = (totalsum / len(dataset)).item()
     print(f'INFO(BUG FIX): totalsum: {totalsum}  {len(dataset)}  {(totalsum / len(dataset)).item()}')
     retavrtarget = (totalsumtarget / len(dataset)).item()
