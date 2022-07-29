@@ -455,6 +455,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         totaltextcnt = totaltextcnt + currtextcnt
 
         gtboxes = torch.tensor(gtbox)
+        # -1로 바꿨음
         boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
         sum = 0
         sumtarget = 0
@@ -476,7 +477,6 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
             maxval = torch.max(iou)
             xor = 1 - maxval
             sum = sum + xor
-            print(f'INFO(BUG FIX): CP3: {sum}')
 
             if gtlabel[j] == 1:
                 sumtarget = sumtarget + xor
