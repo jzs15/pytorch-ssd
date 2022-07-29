@@ -61,6 +61,7 @@ class Predictor:
                                       candidate_size=self.candidate_size)
             picked_box_probs.append(box_probs)
             picked_labels.extend([class_index] * box_probs.size(0))
+        print(f"INFO(BUG FIX): picked_box_probs: {len(picked_box_probs)}.")
         if not picked_box_probs:
             return torch.tensor([]), torch.tensor([]), torch.tensor([])
         picked_box_probs = torch.cat(picked_box_probs)
