@@ -492,6 +492,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
 
         totalsum = totalsum + sum / gtboxes.size(0)
         totalsumtarget = totalsumtarget + sumtarget / targetcnt
+        print(f"INFO(BUG FIX): text cnt: {totalsumtext}  {sumtext}  {textcnt}.")
         totalsumtext = totalsumtext + sumtext / textcnt
 
         matchcnt = matchcnt + currmatchcnt
