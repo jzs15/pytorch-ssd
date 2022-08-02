@@ -422,8 +422,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     elif args.net == 'sq-ssd-lite':
         predictor = create_squeezenet_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200,
-                                                          config=config)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, device=DEVICE, candidate_size=200, config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -508,11 +507,9 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         if facheck > 0:
             facnt = facnt + facheck
 
-    if isinstance(totalsum, float) or isinstance(totalsum, int):
-        print(f'INFO(BUG FIX): totalsum SKIP: {totalsum}')
-        return 0.0, 0.0, 0.0, 0, 0, 0, 0
+    if not isinstance(totalsum, torch.Tensor):
+        return 1.0, 1.0, 1.0, 0, 0, 0, 0
     retavr = (totalsum / len(dataset)).item()
-    print(f'INFO(BUG FIX): totalsum: {totalsum}  {len(dataset)}  {(totalsum / len(dataset)).item()}')
     retavrtarget = (totalsumtarget / len(dataset)).item()
     retavrtext = (totalsumtext / len(dataset)).item()
 
