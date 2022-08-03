@@ -698,6 +698,12 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
+    if args.resume:
+        loadnet = torch.load(args.resume)
+        optimizer.load_state_dict(loadnet['optimizer_state_dict'])
+        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
+        last_epoch = last_epoch['epoch']
+
     #    if args.pretrained_ssd:
     #        loadnet = torch.load(args.pretrained_ssd)
     #        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
