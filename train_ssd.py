@@ -702,7 +702,7 @@ if __name__ == '__main__':
         loadnet = torch.load(args.resume)
         optimizer.load_state_dict(loadnet['optimizer_state_dict'])
         scheduler.load_state_dict(loadnet['scheduler_state_dict'])
-        last_epoch = last_epoch['epoch']
+        last_epoch = loadnet['epoch']
 
     #    if args.pretrained_ssd:
     #        loadnet = torch.load(args.pretrained_ssd)
