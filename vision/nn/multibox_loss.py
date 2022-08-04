@@ -67,9 +67,10 @@ def bbox_overlaps_diou(bboxes1, bboxes2):
     return dious
 
 
-def bbox_overlaps_ciou(bboxes1, bboxes2):
-    bboxes1 = torch.sigmoid(bboxes1)
-    bboxes2 = torch.sigmoid(bboxes2)
+def bbox_overlaps_ciou(bboxes1, bboxes2, eps=1e-7):
+    bboxes1 = swap(bboxes1)
+    bboxes2 = swap(bboxes2)
+
     rows = bboxes1.shape[0]
     cols = bboxes2.shape[0]
     cious = torch.zeros((rows, cols))
@@ -80,43 +81,43 @@ def bbox_overlaps_ciou(bboxes1, bboxes2):
         bboxes1, bboxes2 = bboxes2, bboxes1
         cious = torch.zeros((cols, rows))
         exchange = True
-    w1 = torch.exp(bboxes1[:, 2])
-    h1 = torch.exp(bboxes1[:, 3])
-    w2 = torch.exp(bboxes2[:, 2])
-    h2 = torch.exp(bboxes2[:, 3])
+
+    w1 = bboxes1[:, 2] - bboxes1[:, 0]
+    h1 = bboxes1[:, 3] - bboxes1[:, 1]
+    w2 = bboxes2[:, 2] - bboxes2[:, 0]
+    h2 = bboxes2[:, 3] - bboxes2[:, 1]
+
     area1 = w1 * h1
     area2 = w2 * h2
-    center_x1 = bboxes1[:, 0]
-    center_y1 = bboxes1[:, 1]
-    center_x2 = bboxes2[:, 0]
-    center_y2 = bboxes2[:, 1]
 
-    inter_l = torch.max(center_x1 - w1 / 2, center_x2 - w2 / 2)
-    inter_r = torch.min(center_x1 + w1 / 2, center_x2 + w2 / 2)
-    inter_t = torch.max(center_y1 - h1 / 2, center_y2 - h2 / 2)
-    inter_b = torch.min(center_y1 + h1 / 2, center_y2 + h2 / 2)
-    inter_area = torch.clamp((inter_r - inter_l), min=0) * torch.clamp((inter_b - inter_t), min=0)
+    center_x1 = (bboxes1[:, 2] + bboxes1[:, 0]) / 2
+    center_y1 = (bboxes1[:, 3] + bboxes1[:, 1]) / 2
+    center_x2 = (bboxes2[:, 2] + bboxes2[:, 0]) / 2
+    center_y2 = (bboxes2[:, 3] + bboxes2[:, 1]) / 2
 
-    c_l = torch.min(center_x1 - w1 / 2, center_x2 - w2 / 2)
-    c_r = torch.max(center_x1 + w1 / 2, center_x2 + w2 / 2)
-    c_t = torch.min(center_y1 - h1 / 2, center_y2 - h2 / 2)
-    c_b = torch.max(center_y1 + h1 / 2, center_y2 + h2 / 2)
+    inter_max_xy = torch.min(bboxes1[:, 2:], bboxes2[:, 2:])
+    inter_min_xy = torch.max(bboxes1[:, :2], bboxes2[:, :2])
+    out_max_xy = torch.max(bboxes1[:, 2:], bboxes2[:, 2:])
+    out_min_xy = torch.min(bboxes1[:, :2], bboxes2[:, :2])
 
+    inter = torch.clamp((inter_max_xy - inter_min_xy), min=0)
+    inter_area = inter[:, 0] * inter[:, 1]
     inter_diag = (center_x2 - center_x1) ** 2 + (center_y2 - center_y1) ** 2
-    c_diag = torch.clamp((c_r - c_l), min=0) ** 2 + torch.clamp((c_b - c_t), min=0) ** 2
-
+    outer = torch.clamp((out_max_xy - out_min_xy), min=0)
+    outer_diag = (outer[:, 0] ** 2) + (outer[:, 1] ** 2)
     union = area1 + area2 - inter_area
-    u = inter_diag / c_diag
-    iou = inter_area / union
+    u = inter_diag / outer_diag
+    iou = inter_area / (union + eps)
+
     v = (4 / (math.pi ** 2)) * torch.pow((torch.atan(w2 / h2) - torch.atan(w1 / h1)), 2)
     with torch.no_grad():
-        S = (iou > 0.5).float()
-        alpha = S * v / (1 - iou + v)
-    cious = iou - u - alpha * v
+        S = 1 - iou
+        alpha = v / (S + v)
+    cious = iou - (u + alpha * v)
     cious = torch.clamp(cious, min=-1.0, max=1.0)
     if exchange:
         cious = cious.T
-    return torch.sum(1 - cious)
+    return cious
 
 
 def bbox_overlaps_iou(bboxes1, bboxes2):
@@ -255,8 +256,10 @@ class MultiboxLoss(nn.Module):
             lossfunc = IouLoss(losstype=self.losstype)
             convboxes1 = box_utils.convert_locations_to_boxes(predicted_locations, gt_locations, self.center_variance,
                                                               self.size_variance)
+            convboxes1 = box_utils.center_form_to_corner_form(convboxes1)
             convboxes2 = box_utils.convert_locations_to_boxes(gt_locations, gt_locations, self.center_variance,
                                                               self.size_variance)
+            convboxes2 = box_utils.center_form_to_corner_form(convboxes2)
             smooth_l1_loss = lossfunc(convboxes1, convboxes2)
 
         num_pos = gt_locations.size(0)
