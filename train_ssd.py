@@ -105,7 +105,7 @@ parser.add_argument('--debug_steps', default=100, type=int,
                     help='Set the debug log output frequency.')
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
                     help='Input Image size')
 parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss', 'iou', 'giou', 'diou', 'ciou'],
                     help='Input Image size')
