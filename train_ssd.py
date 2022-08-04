@@ -21,7 +21,7 @@ from vision.datasets.open_images import OpenImagesDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config import vgg_ssd_config
 from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
-    mobilenetv3_ssd_config_160
+    mobilenetv3_ssd_config_160, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 from torch.utils.tensorboard import SummaryWriter
@@ -555,7 +555,11 @@ if __name__ == '__main__':
         create_net = lambda num: create_mobilenetv3_large_ssd_lite(num)
         config = mobilenetv1_ssd_config
     elif args.net == 'mb3-small-ssd-lite':
-        if args.image_size == 240:
+        if args.image_size == 600:
+            config = mobilenetv3_ssd_config_600
+        elif args.image_size == 540:
+            config = mobilenetv3_ssd_config_540
+        elif args.image_size == 240:
             config = mobilenetv3_ssd_config_240
         elif args.image_size == 200:
             config = mobilenetv3_ssd_config_200
