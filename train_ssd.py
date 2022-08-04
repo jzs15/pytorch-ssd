@@ -113,6 +113,9 @@ parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss',
 parser.add_argument('--checkpoint_folder', default='models/',
                     help='Directory for saving checkpoint models')
 
+parser.add_argument('--resume_youtube', action='store_true',
+                    help="resume youtube pre-trained model")
+
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 args = parser.parse_args()
@@ -698,7 +701,7 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if args.resume:
+    if args.resume and not args.resume_youtube:
         loadnet = torch.load(args.resume)
         optimizer.load_state_dict(loadnet['optimizer_state_dict'])
         scheduler.load_state_dict(loadnet['scheduler_state_dict'])
