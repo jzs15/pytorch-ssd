@@ -255,10 +255,8 @@ class MultiboxLoss(nn.Module):
             lossfunc = IouLoss(losstype=self.losstype)
             convboxes1 = box_utils.convert_locations_to_boxes(predicted_locations, gt_locations, self.center_variance,
                                                               self.size_variance)
-            convboxes1 = box_utils.center_form_to_corner_form(convboxes1)
             convboxes2 = box_utils.convert_locations_to_boxes(gt_locations, gt_locations, self.center_variance,
                                                               self.size_variance)
-            convboxes2 = box_utils.center_form_to_corner_form(convboxes2)
             smooth_l1_loss = lossfunc(convboxes1, convboxes2)
 
         num_pos = gt_locations.size(0)
