@@ -234,6 +234,8 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         #        print('train box: ', boxes)
         optimizer.zero_grad()
         confidence, locations = net(images)
+        print(f"ERROR FIX: boxes\n{boxes[:10]}")
+        print(f"ERROR FIX: locations\n{locations[:10]}")
         regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)  # TODO CHANGE BOXES
         loss = regression_loss + classification_loss
         print('train loss: ', loss.item())
