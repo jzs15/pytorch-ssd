@@ -20,7 +20,8 @@ from vision.datasets.voc_dataset import VOCDataset
 from vision.datasets.open_images import OpenImagesDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config import vgg_ssd_config
-from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540, \
+    mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 from torch.utils.tensorboard import SummaryWriter
@@ -48,7 +49,6 @@ parser.add_argument('--validation_dataset', help='Dataset directory path')
 parser.add_argument('--balance_data', action='store_true',
                     help="Balance training data by down-sampling more frequent labels.")
 
-
 parser.add_argument('--net', default="vgg16-ssd",
                     help="The network architecture, it can be mb1-ssd, mb1-lite-ssd, mb2-ssd-lite, mb3-large-ssd-lite, mb3-small-ssd-lite or vgg16-ssd.")
 parser.add_argument('--freeze_base_net', action='store_true',
@@ -73,13 +73,14 @@ parser.add_argument('--base_net_lr', default=None, type=float,
 parser.add_argument('--extra_layers_lr', default=None, type=float,
                     help='initial learning rate for the layers not in base net and prediction heads.')
 
-
 # Params for loading pretrained basenet or checkpoints.
 parser.add_argument('--base_net',
                     help='Pretrained base model')
 parser.add_argument('--pretrained_ssd', help='Pre-trained base model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
+parser.add_argument('--resume_all', action='store_true',
+                    help="Checkpoint state_dict file to resume training from(include epoch, optimizer and scheduler")
 
 # Scheduler
 parser.add_argument('--scheduler', default="multi-step", type=str,
@@ -106,14 +107,13 @@ parser.add_argument('--debug_steps', default=100, type=int,
                     help='Set the debug log output frequency.')
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
                     help='Input Image size')
 parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss', 'iou', 'giou', 'diou', 'ciou'],
                     help='Input Image size')
 
 parser.add_argument('--checkpoint_folder', default='models/',
                     help='Directory for saving checkpoint models')
-
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -124,11 +124,14 @@ if args.use_cuda and torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
     logging.info("Use Cuda.")
 
+
 def is_parallel(model):
     return type(model) in (torch.nn.parallel.DataParallel, torch.nn.parallel.DistributedDataParallel)
 
+
 def de_parallel(model):
     return model.module if is_parallel(model) else model
+
 
 def group_annotation_by_class(dataset):
     true_case_stat = {}
@@ -150,7 +153,7 @@ def group_annotation_by_class(dataset):
                 all_gt_boxes[class_index][image_id] = []
             all_gt_boxes[class_index][image_id].append(gt_box)
             if class_index not in all_difficult_cases:
-                all_difficult_cases[class_index]={}
+                all_difficult_cases[class_index] = {}
             if image_id not in all_difficult_cases[class_index]:
                 all_difficult_cases[class_index][image_id] = []
             all_difficult_cases[class_index][image_id].append(difficult)
@@ -162,6 +165,7 @@ def group_annotation_by_class(dataset):
         for image_id in all_difficult_cases[class_index]:
             all_gt_boxes[class_index][image_id] = torch.tensor(all_gt_boxes[class_index][image_id])
     return true_case_stat, all_gt_boxes, all_difficult_cases
+
 
 def compute_average_precision_per_class(num_true_cases, gt_boxes, difficult_cases,
                                         prediction_file, iou_threshold, use_2007_metric):
@@ -212,6 +216,7 @@ def compute_average_precision_per_class(num_true_cases, gt_boxes, difficult_case
     else:
         return measurements.compute_average_precision(precision, recall)
 
+
 def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
     net.train(True)
     running_loss = 0.0
@@ -225,7 +230,7 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
         boxes = boxes.to(device)
         labels = labels.to(device)
 
-#        print('train box: ', boxes)
+        #        print('train box: ', boxes)
         optimizer.zero_grad()
         confidence, locations = net(images)
         regression_loss, classification_loss = criterion(confidence, locations, labels, boxes)  # TODO CHANGE BOXES
@@ -253,7 +258,7 @@ def train(loader, net, criterion, optimizer, device, epoch=-1, tb_writer=None):
     if num == 0:
         return float('nan'), float('nan'), float('nan')
     else:
-       return running_loss / num, running_regression_loss / num, running_classification_loss / num
+        return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
 
 def test(loader, net, criterion, device):
@@ -292,6 +297,7 @@ def test(loader, net, criterion, device):
     else:
         return running_loss / num, running_regression_loss / num, running_classification_loss / num
 
+
 def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
 
@@ -328,7 +334,7 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, co
     elif args.net == 'mb1-ssd-lite':
         predictor = create_mobilenetv1_ssd_lite_predictor(net, nms_method='hard', device=DEVICE)
     elif args.net == 'sq-ssd-lite':
-        predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE)
+        predictor = create_squeezenet_ssd_lite_predictor(net, nms_method='hard', device=DEVICE)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
         predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, config=config)
     else:
@@ -377,9 +383,10 @@ def eval(args, net_state_dict, device, iou_threshold, label_file, targetPath, co
         )
         aps.append(ap)
 
-#    print(f"\nAverage Precision Across All Classes:{sum(aps)/len(aps)}")
+    #    print(f"\nAverage Precision Across All Classes:{sum(aps)/len(aps)}")
 
     return class_names, aps
+
 
 def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config):
     class_names = [name.strip() for name in open(label_file).readlines()]
@@ -415,109 +422,84 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     elif args.net == 'mb1-ssd-lite':
         predictor = create_mobilenetv1_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'sq-ssd-lite':
-        predictor = create_squeezenet_ssd_lite_predictor(net,nms_method='hard', device=DEVICE, candidate_size=200)
+        predictor = create_squeezenet_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200, config=config)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200,
+                                                          config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    totalsum = 0
-    totalsumtarget = 0
-    totalsumtext = 0
-
-    totalcnt = 0
-    totaltargetcnt = 0
-    totaltextcnt = 0
-
-    matchcnt = 0
-    matchtargetcnt = 0
-    matchtextcnt = 0
+    class_num = len(class_names) - 1
+    total_sum = 0
+    total_sum_target = [0] * class_num
+    total_cnt = 0
+    total_target_cnt = [0] * class_num
+    match_cnt = 0
+    match_target_cnt = [0] * class_num
 
     facnt = 0
 
-    try:
-        for i in range(len(dataset)):
-            image = dataset.get_image(i)
-            a, gtbox, gtlabel = dataset.__getitem__(i)
+    for i in range(len(dataset)):
+        image = dataset.get_image(i)
+        a, gt_box, gt_label = dataset.__getitem__(i)
 
-            currcnt = gtbox.shape[0]
-            currtargetcnt = np.count_nonzero(gtlabel==1)
-            currtextcnt = np.count_nonzero(gtlabel==2)
-            totalcnt = totalcnt + gtbox.shape[0]
-            totaltargetcnt = totaltargetcnt + currtargetcnt
-            totaltextcnt = totaltextcnt + currtextcnt
+        for j in range(class_num):
+            total_target_cnt[j] += np.count_nonzero(gt_label == j + 1)
+        total_cnt = total_cnt + gt_box.shape[0]
 
-            gtboxes = torch.tensor(gtbox)
-            boxes, labels, probs = predictor.predict(image, 20, iou_threshold)
-            sum = 0
-            sumtarget = 0
-            sumtext = 0
-            targetcnt = 0
-            textcnt = 0
+        gt_boxes = torch.tensor(gt_box)
+        boxes, labels, probs = predictor.predict(image, 30, iou_threshold)
+        sum = 0
+        sum_target = [0] * class_num
+        target_cnt = [0] * class_num
+        cur_match_cnt = 0
+        cur_match_target_cnt = [0] * class_num
 
-            predcnt = list(boxes.size())[0]
-            currmatchcnt = 0
-            currmatchtargetcnt = 0
-            currmatchtextcnt = 0
+        if boxes.shape[0] == 0:
+            continue
+        for j in range(gt_boxes.size(0)):
+            iou = box_utils.iou_of(gt_boxes[j], boxes)
+            maxval = torch.max(iou)
+            xor = 1 - maxval
+            sum += xor
 
-            currfacnt = 0
+            cur_class = gt_label[j] - 1
+            if cur_class >= 0:
+                sum_target[cur_class] += xor
+                target_cnt[cur_class] += 1
 
-            for j in range(gtboxes.size(0)):
-                iou = box_utils.iou_of(gtboxes[j], boxes)
-                maxval = torch.max(iou)
-                xor = 1 - maxval
-                sum = sum + xor
+            if maxval > iou_threshold:
+                cur_match_cnt += 1
 
-                if gtlabel[j] == 1:
-                    sumtarget = sumtarget + xor
-                    targetcnt = targetcnt + 1
-                elif gtlabel[j] == 2:
-                    sumtext = sumtext + xor
-                    textcnt = textcnt + 1
+                if cur_class >= 0:
+                    cur_match_target_cnt[cur_class] += 1
 
-                if maxval > iou_threshold:
-                    currmatchcnt = currmatchcnt + 1
+        total_sum += sum / gt_boxes.size(0)
+        for j in range(class_num):
+            if target_cnt[j] > 0:
+                total_sum_target[j] += sum_target[j] / target_cnt[j]
 
-                    if gtlabel[j] == 1:
-                        currmatchtargetcnt = currmatchtargetcnt + 1
-                    elif gtlabel[j] == 2:
-                        currmatchtextcnt = currmatchtextcnt + 1
+        match_cnt += cur_match_cnt
+        for j in range(class_num):
+            match_target_cnt[j] += cur_match_target_cnt[j]
 
-            totalsum = totalsum + sum / gtboxes.size(0)
-            totalsumtarget = totalsumtarget + sumtarget / targetcnt
-            totalsumtext = totalsumtext + sumtext / textcnt
+        facheck = list(probs > iou_threshold).count(True) - gt_boxes.size(0)
 
-            matchcnt = matchcnt + currmatchcnt
-            matchtargetcnt = matchtargetcnt + currmatchtargetcnt
-            matchtextcnt = matchtextcnt + currmatchtextcnt
+        if facheck > 0:
+            facnt = facnt + facheck
 
-            facheck = list(probs > iou_threshold).count(True) - gtboxes.size(0)
+    if not isinstance(total_sum, torch.Tensor):
+        return 1.0, [1.0] * class_num, 0, [0] * class_num, 0
+    ret_avr = (total_sum / len(dataset)).item()
+    ret_avr_target = [(t / len(dataset)).item() if isinstance(t, torch.Tensor) else 1.0 for t in total_sum_target]
+    ret_total_ap = match_cnt / total_cnt
+    ret_total_target_ap = [t1 / t2 for t1, t2 in zip(match_target_cnt, total_target_cnt)]
+    ret_facnt = facnt
 
-            if facheck > 0:
-                facnt = facnt + facheck
+    return ret_avr, ret_avr_target, ret_total_ap, ret_total_target_ap, ret_facnt
 
-        retavr = (totalsum/len(dataset)).item()
-        retavrtarget = (totalsumtarget/len(dataset)).item()
-        retavrtext = (totalsumtext/len(dataset)).item()
-
-        rettotalap = matchcnt/totalcnt
-        rettotaltargetap = matchtargetcnt/totaltargetcnt
-        rettotaltextap = matchtextcnt/totaltextcnt
-        retfacnt = facnt
-
-    except:
-        retavr = 1.0
-        retavrtarget = 1.0
-        retavrtext = 1.0
-
-        rettotalap = 0
-        rettotaltargetap = 0
-        rettotaltextap = 0
-        retfacnt = 0
-
-    return retavr, retavrtarget, retavrtext, rettotalap, rettotaltargetap, rettotaltextap, retfacnt
 
 if __name__ == '__main__':
     timer = Timer()
@@ -550,7 +532,11 @@ if __name__ == '__main__':
         create_net = lambda num: create_mobilenetv3_large_ssd_lite(num)
         config = mobilenetv1_ssd_config
     elif args.net == 'mb3-small-ssd-lite':
-        if args.image_size == 240:
+        if args.image_size == 600:
+            config = mobilenetv3_ssd_config_600
+        elif args.image_size == 540:
+            config = mobilenetv3_ssd_config_540
+        elif args.image_size == 240:
             config = mobilenetv3_ssd_config_240
         elif args.image_size == 200:
             config = mobilenetv3_ssd_config_200
@@ -571,9 +557,9 @@ if __name__ == '__main__':
 
     test_transform = TestTransform(config.image_size, config.image_mean, config.image_std)
 
-    #train_transform = None
-    #target_transform = None
-    #test_transform = None
+    # train_transform = None
+    # target_transform = None
+    # test_transform = None
 
     logging.info("Prepare training datasets.")
     if args.dataset_type == 'voc':
@@ -584,8 +570,8 @@ if __name__ == '__main__':
         num_classes = len(dataset.class_names)
     elif args.dataset_type == 'open_images':
         dataset = OpenImagesDataset(args.datasets,
-             transform=train_transform, target_transform=target_transform,
-             dataset_type="train", balance_data=args.balance_data)
+                                    transform=train_transform, target_transform=target_transform,
+                                    dataset_type="train", balance_data=args.balance_data)
         label_file = os.path.join(args.checkpoint_folder, "open-images-model-labels.txt")
         store_labels(label_file, dataset.class_names)
         logging.info(dataset)
@@ -595,7 +581,7 @@ if __name__ == '__main__':
         raise ValueError(f"Dataset type {args.dataset_type} is not supported.")
 
     logging.info(f"Stored labels into file {label_file}.")
-#    train_dataset = ConcatDataset(datasets)
+    #    train_dataset = ConcatDataset(datasets)
     logging.info("Train dataset size: {}".format(len(dataset)))
     train_loader = DataLoader(dataset, args.batch_size,
                               num_workers=args.num_workers,
@@ -657,7 +643,7 @@ if __name__ == '__main__':
         ]
 
     timer.start("Load Model")
-    if args.resume:
+    if args.resume or args.resume_all:
         logging.info(f"Resume from the model {args.resume}")
         net.load(args.resume)
     elif args.base_net:
@@ -673,8 +659,8 @@ if __name__ == '__main__':
     logging.info(f"Init Loss Function: {args.lossfunc}")
     criterion = MultiboxLoss(config.priors, iou_threshold=0.5, neg_pos_ratio=3,
                              center_variance=0.1, size_variance=0.2, device=DEVICE, losstype=args.lossfunc)
-#    optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
-#                                weight_decay=args.weight_decay)
+    #    optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum,
+    #                                weight_decay=args.weight_decay)
     optimizer = RAdam(params, lr=args.lr, betas=(0.9, 0.999), weight_decay=1e-4)
     logging.info(f"Learning rate: {args.lr}, Base net learning rate: {base_net_lr}, "
                  + f"Extra Layers learning rate: {extra_layers_lr}.")
@@ -687,7 +673,7 @@ if __name__ == '__main__':
         logging.info("Uses MultiStepLR scheduler.")
         milestones = [int(v.strip()) for v in args.milestones.split(",")]
         scheduler = MultiStepLR(optimizer, milestones=milestones,
-                                                     gamma=0.1, last_epoch=last_epoch)
+                                gamma=0.1, last_epoch=last_epoch)
     elif args.scheduler == 'cosine':
         logging.info("Uses CosineAnnealingLR scheduler.")
         scheduler = CosineAnnealingLR(optimizer, args.t_max, last_epoch=last_epoch)
@@ -696,9 +682,15 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-#    if args.pretrained_ssd:
-#        loadnet = torch.load(args.pretrained_ssd)
-#        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
+    if args.resume_all:
+        loadnet = torch.load(args.resume)
+        optimizer.load_state_dict(loadnet['optimizer_state_dict'])
+        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
+        last_epoch = loadnet['epoch']
+
+    #    if args.pretrained_ssd:
+    #        loadnet = torch.load(args.pretrained_ssd)
+    #        scheduler.load_state_dict(loadnet['scheduler_state_dict'])
 
     loglen = 0
     try:
@@ -718,7 +710,8 @@ if __name__ == '__main__':
     logging.info(f"Start training from epoch {last_epoch + 1}.")
     for epoch in range(last_epoch + 1, args.num_epochs):
         train_loss, train_regression_loss, train_classification_loss = train(train_loader, net, criterion, optimizer,
-              device=DEVICE, epoch=epoch, tb_writer=tb_writer)
+                                                                             device=DEVICE, epoch=epoch,
+                                                                             tb_writer=tb_writer)
         logging.info(
             f"Epoch: {epoch}, " +
             f"Train Loss: {train_loss:.4f}, " +
@@ -747,25 +740,27 @@ if __name__ == '__main__':
 
         cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath, config)
         logging.info(
-            f"map: {sum(cap)/len(cap):.4f}, " +
-            f"{cname[1]}: {cap[0]:.4f}, " +
-            f"{cname[2]}: {cap[1]:.4f}"
+            f"map: {sum(cap) / len(cap):.4f}, " +
+            "".join([f"{cname[i]}: {cap[i - 1]:.4f}, " for i in range(1, num_classes)])
         )
 
-        totalavr, totalavrtarget, totalavrtext, totalap, totaltargetap, totaltextap, facnt = cal_boxdiff(args, net.state_dict(), DEVICE, 0.5, label_file, config)
+        total_avr, total_avr_target, total_ap, total_target_ap, facnt = cal_boxdiff(args,
+                                                                                    net.state_dict(),
+                                                                                    DEVICE, 0.5,
+                                                                                    label_file,
+                                                                                    config)
+        class_names = dataset.class_names
         logging.info(
-            f"totalavr: {totalavr}, " +
-            f"totalavrtarget: {totalavrtarget}, " +
-            f"totalavrtext: {totalavrtext}, " +
-            f"totalap: {totalap}, " +
-            f"totaltargetap: {totaltargetap}, " +
-            f"totaltextap: {totaltextap}, " +
+            f"totalavr: {total_avr}, " +
+            "".join([f"totalavr_{class_names[i]}: {total_avr_target[i - 1]}, " for i in range(1, num_classes)]) +
+            f"totalap: {total_ap}, " +
+            "".join([f"totalap_{class_names[i]}: {total_target_ap[i - 1]}, " for i in range(1, num_classes)]) +
             f"facnt: {facnt}"
         )
 
         model_path = targetPath + '/' + args.net + '-' + last
 
-        #torch.save(net.state_dict(), model_path)
+        # torch.save(net.state_dict(), model_path)
         torch.save({
             'epoch': epoch,
             'model_state_dict': net.state_dict(),
@@ -773,71 +768,71 @@ if __name__ == '__main__':
             'scheduler_state_dict': scheduler.state_dict(),
             'val_regression_loss': val_regression_loss,
             'val_classification_loss': val_classification_loss
-            }, model_path)
+        }, model_path)
 
         if best_loss > val_loss:
-          best_loss = val_loss
+            best_loss = val_loss
 
-        if best_iou > totalavr:
-          best_iou = totalavr
+        if best_iou > total_avr:
+            best_iou = total_avr
 
-        cur_ap = sum(cap)/len(cap)
+        cur_ap = sum(cap) / len(cap)
         if best_ap < cur_ap:
-          best_ap = cur_ap
+            best_ap = cur_ap
 
         if best_loss == val_loss:
-          model_path = targetPath + '/' + args.net + "-" + best
-          #torch.save(net.state_dict(), model_path)
-          torch.save({
-              'epoch': epoch,
-              'model_state_dict': net.state_dict(),
-              'optimizer_state_dict': optimizer.state_dict(),
-              'scheduler_state_dict': scheduler.state_dict(),
-              'val_regression_loss': val_regression_loss,
-              'val_classification_loss': val_classification_loss
-              }, model_path)
-          logging.info(f"Saved model {model_path}")
+            model_path = targetPath + '/' + args.net + "-" + best
+            # torch.save(net.state_dict(), model_path)
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'val_regression_loss': val_regression_loss,
+                'val_classification_loss': val_classification_loss
+            }, model_path)
+            logging.info(f"Saved model {model_path}")
 
-        if best_iou == totalavr:
-          model_path = targetPath + '/' + args.net + "-" + bestiou
-          #torch.save(net.state_dict(), model_path)
-          torch.save({
-              'epoch': epoch,
-              'model_state_dict': net.state_dict(),
-              'optimizer_state_dict': optimizer.state_dict(),
-              'scheduler_state_dict': scheduler.state_dict(),
-              'val_regression_loss': val_regression_loss,
-              'val_classification_loss': val_classification_loss
-              }, model_path)
-          logging.info(f"Saved model {model_path}")
+        if best_iou == total_avr:
+            model_path = targetPath + '/' + args.net + "-" + bestiou
+            # torch.save(net.state_dict(), model_path)
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'val_regression_loss': val_regression_loss,
+                'val_classification_loss': val_classification_loss
+            }, model_path)
+            logging.info(f"Saved model {model_path}")
 
         if best_ap == cur_ap:
-          model_path = targetPath + '/' + args.net + "-" + bestap
-          #torch.save(net.state_dict(), model_path)
-          torch.save({
-              'epoch': epoch,
-              'model_state_dict': net.state_dict(),
-              'optimizer_state_dict': optimizer.state_dict(),
-              'scheduler_state_dict': scheduler.state_dict(),
-              'val_regression_loss': val_regression_loss,
-              'val_classification_loss': val_classification_loss
-              }, model_path)
-          logging.info(f"Saved model {model_path}")
+            model_path = targetPath + '/' + args.net + "-" + bestap
+            # torch.save(net.state_dict(), model_path)
+            torch.save({
+                'epoch': epoch,
+                'model_state_dict': net.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scheduler_state_dict': scheduler.state_dict(),
+                'val_regression_loss': val_regression_loss,
+                'val_classification_loss': val_classification_loss
+            }, model_path)
+            logging.info(f"Saved model {model_path}")
 
         if tb_writer:
-          tb_writer.add_scalar('train/loss', train_loss, epoch)
-          tb_writer.add_scalar('train/regression_loss', train_regression_loss, epoch)
-          tb_writer.add_scalar('train/classification_loss', train_classification_loss, epoch)
-          tb_writer.add_scalar('val/loss', val_loss, epoch)
-          tb_writer.add_scalar('val/regression_loss', val_regression_loss, epoch)
-          tb_writer.add_scalar('val/classification_loss', val_classification_loss, epoch)
-          tb_writer.add_scalar('val/map', sum(cap)/len(cap), epoch)
-          tb_writer.add_scalar('val/target', cap[0], epoch)
-          tb_writer.add_scalar('val/text', cap[1], epoch)
-          tb_writer.add_scalar('box/total', totalavr, epoch)
-          tb_writer.add_scalar('box/target', totalavrtarget, epoch)
-          tb_writer.add_scalar('box/text', totalavrtext, epoch)
-          tb_writer.add_scalar('box/totalap', totalap, epoch)
-          tb_writer.add_scalar('box/totaltargetap', totaltargetap, epoch)
-          tb_writer.add_scalar('box/totaltextap', totaltextap, epoch)
-          tb_writer.add_scalar('box/facnt', facnt, epoch)
+            tb_writer.add_scalar('train/loss', train_loss, epoch)
+            tb_writer.add_scalar('train/regression_loss', train_regression_loss, epoch)
+            tb_writer.add_scalar('train/classification_loss', train_classification_loss, epoch)
+            tb_writer.add_scalar('val/loss', val_loss, epoch)
+            tb_writer.add_scalar('val/regression_loss', val_regression_loss, epoch)
+            tb_writer.add_scalar('val/classification_loss', val_classification_loss, epoch)
+            tb_writer.add_scalar('val/map', sum(cap) / len(cap), epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar(f'val/{cname[i]}', cap[i - 1], epoch)
+            tb_writer.add_scalar('box/total', total_avr, epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar(f'box/totalavr_{class_names[i]}', total_avr_target[i - 1], epoch)
+            tb_writer.add_scalar('box/totalap', total_ap, epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar(f'box/totalap_{class_names[i]}', total_target_ap[i - 1], epoch)
+            tb_writer.add_scalar('box/facnt', facnt, epoch)
