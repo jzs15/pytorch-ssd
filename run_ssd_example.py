@@ -20,7 +20,7 @@ parser.add_argument("--trained_model", type=str)
 parser.add_argument("--label_file", type=str, help="The label file path.")
 parser.add_argument("--image", type=str, help="The image file path.")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
-parser.add_argument('--image_size', default=300, type=int, choices=[300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
                     help='Input Image size')
 args = parser.parse_args()
 

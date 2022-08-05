@@ -449,7 +449,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         total_cnt = total_cnt + gt_box.shape[0]
 
         gt_boxes = torch.tensor(gt_box)
-        boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
+        boxes, labels, probs = predictor.predict(image, 30, iou_threshold)
         sum = 0
         sum_target = [0] * class_num
         target_cnt = [0] * class_num
