@@ -430,7 +430,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    class_num = len(class_names)
+    class_num = len(class_names) - 1
     total_sum = 0
     total_sum_target = [0] * class_num
     total_cnt = 0
@@ -444,8 +444,8 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         image = dataset.get_image(i)
         a, gt_box, gt_label = dataset.__getitem__(i)
 
-        for j in range(1, class_num):
-            total_target_cnt[j] += np.count_nonzero(gt_label == j)
+        for j in range(class_num):
+            total_target_cnt[j] += np.count_nonzero(gt_label == j + 1)
         total_cnt = total_cnt + gt_box.shape[0]
 
         gt_boxes = torch.tensor(gt_box)
@@ -464,24 +464,24 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
             xor = 1 - maxval
             sum += xor
 
-            cur_class = gt_label[j]
-            if cur_class != 0:
+            cur_class = gt_label[j] - 1
+            if cur_class >= 0:
                 sum_target[cur_class] += xor
                 target_cnt[cur_class] += 1
 
             if maxval > iou_threshold:
                 cur_match_cnt += 1
 
-                if cur_class != 0:
+                if cur_class >= 0:
                     cur_match_target_cnt[cur_class] += 1
 
         total_sum += sum / gt_boxes.size(0)
-        for j in range(1, class_num):
+        for j in range(class_num):
             if target_cnt[j] > 0:
                 total_sum_target[j] += sum_target[j] / target_cnt[j]
 
         match_cnt += cur_match_cnt
-        for j in range(1, class_num):
+        for j in range(class_num):
             match_target_cnt[j] += cur_match_target_cnt[j]
 
         facheck = list(probs > iou_threshold).count(True) - gt_boxes.size(0)
@@ -751,9 +751,9 @@ if __name__ == '__main__':
         class_names = dataset.class_names
         logging.info(
             f"totalavr: {total_avr}, " +
-            "".join([f"totalavr{class_names[i]}: {total_avr_target[i]}, " for i in range(1, num_classes)]) +
+            "".join([f"totalavr{class_names[i]}: {total_avr_target[i - 1]}, " for i in range(1, num_classes)]) +
             f"totalap: {total_ap}, " +
-            "".join([f"total{class_names[i]}ap: {total_target_ap[i]}, " for i in range(1, num_classes)]) +
+            "".join([f"total{class_names[i]}ap: {total_target_ap[i - 1]}, " for i in range(1, num_classes)]) +
             f"facnt: {facnt}"
         )
 
@@ -830,8 +830,8 @@ if __name__ == '__main__':
                 tb_writer.add_scalar('val/target', cap[i - 1], epoch)
             tb_writer.add_scalar('box/total', total_avr, epoch)
             for i in range(1, num_classes):
-                tb_writer.add_scalar(f'box/{class_names[i]}', total_avr_target[i], epoch)
+                tb_writer.add_scalar(f'box/{class_names[i]}', total_avr_target[i - 1], epoch)
             tb_writer.add_scalar('box/totalap', total_ap, epoch)
             for i in range(1, num_classes):
-                tb_writer.add_scalar(f'box/total{class_names[i]}ap', total_target_ap[i], epoch)
+                tb_writer.add_scalar(f'box/total{class_names[i]}ap', total_target_ap[i - 1], epoch)
             tb_writer.add_scalar('box/facnt', facnt, epoch)
