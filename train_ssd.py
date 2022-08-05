@@ -827,7 +827,7 @@ if __name__ == '__main__':
             tb_writer.add_scalar('val/classification_loss', val_classification_loss, epoch)
             tb_writer.add_scalar('val/map', sum(cap) / len(cap), epoch)
             for i in range(1, num_classes):
-                tb_writer.add_scalar('val/target', cap[i - 1], epoch)
+                tb_writer.add_scalar(f'val/{cname[i]}', cap[i - 1], epoch)
             tb_writer.add_scalar('box/total', total_avr, epoch)
             for i in range(1, num_classes):
                 tb_writer.add_scalar(f'box/{class_names[i]}', total_avr_target[i - 1], epoch)
