@@ -5,7 +5,7 @@ from vision.ssd.squeezenet_ssd_lite import create_squeezenet_ssd_lite, create_sq
 from vision.ssd.mobilenet_v2_ssd_lite import create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor
 from vision.ssd.mobilenetv3_ssd_lite import create_mobilenetv3_large_ssd_lite, create_mobilenetv3_small_ssd_lite
 from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
-    mobilenetv3_ssd_config_160
+    mobilenetv3_ssd_config_160, mobilenetv3_ssd_config_540, mobilenetv3_ssd_config_600
 from vision.utils.misc import Timer
 import cv2
 import sys
@@ -44,7 +44,11 @@ elif net_type == 'mb2-ssd-lite':
 elif net_type == 'mb3-large-ssd-lite':
     net = create_mobilenetv3_large_ssd_lite(len(class_names), is_test=True)
 elif net_type == 'mb3-small-ssd-lite':
-    if args.image_size == 240:
+    if args.image_size == 600:
+        config = mobilenetv3_ssd_config_600
+    elif args.image_size == 540:
+        config = mobilenetv3_ssd_config_540
+    elif args.image_size == 240:
         config = mobilenetv3_ssd_config_240
     elif args.image_size == 200:
         config = mobilenetv3_ssd_config_200
