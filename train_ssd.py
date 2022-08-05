@@ -431,97 +431,74 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    totalsum = 0
-    totalsumtarget = 0
-    totalsumtext = 0
-
-    totalcnt = 0
-    totaltargetcnt = 0
-    totaltextcnt = 0
-
-    matchcnt = 0
-    matchtargetcnt = 0
-    matchtextcnt = 0
+    class_num = len(class_names)
+    total_sum = 0
+    total_sum_target = [0] * class_num
+    total_cnt = 0
+    total_target_cnt = [0] * class_num
+    match_cnt = 0
+    match_target_cnt = [0] * class_num
 
     facnt = 0
 
     for i in range(len(dataset)):
         image = dataset.get_image(i)
-        a, gtbox, gtlabel = dataset.__getitem__(i)
+        a, gt_box, gt_label = dataset.__getitem__(i)
 
-        currcnt = gtbox.shape[0]
-        currtargetcnt = np.count_nonzero(gtlabel == 1)
-        currtextcnt = np.count_nonzero(gtlabel == 2)
-        totalcnt = totalcnt + gtbox.shape[0]
-        totaltargetcnt = totaltargetcnt + currtargetcnt
-        totaltextcnt = totaltextcnt + currtextcnt
+        for j in range(1, class_num):
+            total_target_cnt[j] += np.count_nonzero(gt_label == j)
+        total_cnt = total_cnt + gt_box.shape[0]
 
-        gtboxes = torch.tensor(gtbox)
-        # -1로 바꿨음
+        gt_boxes = torch.tensor(gt_box)
         boxes, labels, probs = predictor.predict(image, -1, iou_threshold)
         sum = 0
-        sumtarget = 0
-        sumtext = 0
-        targetcnt = 0
-        textcnt = 0
-
-        predcnt = list(boxes.size())[0]
-        currmatchcnt = 0
-        currmatchtargetcnt = 0
-        currmatchtextcnt = 0
-
-        currfacnt = 0
+        sum_target = [0] * class_num
+        target_cnt = [0] * class_num
+        cur_match_cnt = 0
+        cur_match_target_cnt = [0] * class_num
 
         if boxes.shape[0] == 0:
             continue
-        for j in range(gtboxes.size(0)):
-            iou = box_utils.iou_of(gtboxes[j], boxes)
+        for j in range(gt_boxes.size(0)):
+            iou = box_utils.iou_of(gt_boxes[j], boxes)
             maxval = torch.max(iou)
             xor = 1 - maxval
-            sum = sum + xor
+            sum += xor
 
-            if gtlabel[j] == 1:
-                sumtarget = sumtarget + xor
-                targetcnt = targetcnt + 1
-            elif gtlabel[j] == 2:
-                sumtext = sumtext + xor
-                textcnt = textcnt + 1
+            cur_class = gt_label[j]
+            if cur_class != 0:
+                sum_target[cur_class] += xor
+                target_cnt[cur_class] += 1
 
             if maxval > iou_threshold:
-                currmatchcnt = currmatchcnt + 1
+                cur_match_cnt += 1
 
-                if gtlabel[j] == 1:
-                    currmatchtargetcnt = currmatchtargetcnt + 1
-                elif gtlabel[j] == 2:
-                    currmatchtextcnt = currmatchtextcnt + 1
+                if cur_class != 0:
+                    cur_match_target_cnt[cur_class] += 1
 
-        totalsum = totalsum + sum / gtboxes.size(0)
-        if targetcnt > 0:
-            totalsumtarget = totalsumtarget + sumtarget / targetcnt
-        if textcnt > 0:
-            totalsumtext = totalsumtext + sumtext / textcnt
+        total_sum += sum / gt_boxes.size(0)
+        for j in range(1, class_num):
+            if target_cnt[j] > 0:
+                total_sum_target[j] += sum_target[j] / target_cnt[j]
 
-        matchcnt = matchcnt + currmatchcnt
-        matchtargetcnt = matchtargetcnt + currmatchtargetcnt
-        matchtextcnt = matchtextcnt + currmatchtextcnt
+        match_cnt += cur_match_cnt
+        for j in range(1, class_num):
+            match_target_cnt[j] += cur_match_target_cnt[j]
 
-        facheck = list(probs > iou_threshold).count(True) - gtboxes.size(0)
+        facheck = list(probs > iou_threshold).count(True) - gt_boxes.size(0)
 
         if facheck > 0:
             facnt = facnt + facheck
 
-    if not isinstance(totalsum, torch.Tensor):
-        return 1.0, 1.0, 1.0, 0, 0, 0, 0
-    retavr = (totalsum / len(dataset)).item()
-    retavrtarget = (totalsumtarget / len(dataset)).item()
-    retavrtext = (totalsumtext / len(dataset)).item()
+    if not isinstance(total_sum, torch.Tensor):
+        return 1.0, [1.0] * class_num, 0, [0] * class_num, 0
+    ret_avr = (total_sum / len(dataset)).item()
+    ret_avr_target = [(t / len(dataset)).item() for t in total_sum_target]
+    ret_total_ap = match_cnt / total_cnt
+    ret_total_target_ap = [t1 / t2 for t1, t2 in zip(match_target_cnt, total_target_cnt)]
+    ret_facnt = facnt
 
-    rettotalap = matchcnt / totalcnt
-    rettotaltargetap = matchtargetcnt / totaltargetcnt
-    rettotaltextap = matchtextcnt / totaltextcnt
-    retfacnt = facnt
-
-    return retavr, retavrtarget, retavrtext, rettotalap, rettotaltargetap, rettotaltextap, retfacnt
+    return ret_avr, ret_avr_target, ret_total_ap, ret_total_target_ap, ret_facnt
 
 
 if __name__ == '__main__':
@@ -764,22 +741,20 @@ if __name__ == '__main__':
         cname, cap = eval(args, net.state_dict(), DEVICE, 0.5, label_file, targetPath, config)
         logging.info(
             f"map: {sum(cap) / len(cap):.4f}, " +
-            f"{cname[1]}: {cap[0]:.4f}, " +
-            f"{cname[2]}: {cap[1]:.4f}"
+            "".join([f"{cname[i]}: {cap[i - 1]:.4f}, " for i in range(1, num_classes)])
         )
 
-        totalavr, totalavrtarget, totalavrtext, totalap, totaltargetap, totaltextap, facnt = cal_boxdiff(args,
-                                                                                                         net.state_dict(),
-                                                                                                         DEVICE, 0.5,
-                                                                                                         label_file,
-                                                                                                         config)
+        total_avr, total_avr_target, total_ap, total_target_ap, facnt = cal_boxdiff(args,
+                                                                                    net.state_dict(),
+                                                                                    DEVICE, 0.5,
+                                                                                    label_file,
+                                                                                    config)
+        class_names = dataset.class_names
         logging.info(
-            f"totalavr: {totalavr}, " +
-            f"totalavrtarget: {totalavrtarget}, " +
-            f"totalavrtext: {totalavrtext}, " +
-            f"totalap: {totalap}, " +
-            f"totaltargetap: {totaltargetap}, " +
-            f"totaltextap: {totaltextap}, " +
+            f"totalavr: {total_avr}, " +
+            "".join([f"totalavr{class_names[i]}: {total_avr_target[i]}, " for i in range(1, num_classes)]) +
+            f"totalap: {total_ap}, " +
+            "".join([f"total{class_names[i]}ap: {total_target_ap[i]}, " for i in range(1, num_classes)]) +
             f"facnt: {facnt}"
         )
 
@@ -798,8 +773,8 @@ if __name__ == '__main__':
         if best_loss > val_loss:
             best_loss = val_loss
 
-        if best_iou > totalavr:
-            best_iou = totalavr
+        if best_iou > total_avr:
+            best_iou = total_avr
 
         cur_ap = sum(cap) / len(cap)
         if best_ap < cur_ap:
@@ -818,7 +793,7 @@ if __name__ == '__main__':
             }, model_path)
             logging.info(f"Saved model {model_path}")
 
-        if best_iou == totalavr:
+        if best_iou == total_avr:
             model_path = targetPath + '/' + args.net + "-" + bestiou
             # torch.save(net.state_dict(), model_path)
             torch.save({
@@ -852,12 +827,12 @@ if __name__ == '__main__':
             tb_writer.add_scalar('val/regression_loss', val_regression_loss, epoch)
             tb_writer.add_scalar('val/classification_loss', val_classification_loss, epoch)
             tb_writer.add_scalar('val/map', sum(cap) / len(cap), epoch)
-            tb_writer.add_scalar('val/target', cap[0], epoch)
-            tb_writer.add_scalar('val/text', cap[1], epoch)
-            tb_writer.add_scalar('box/total', totalavr, epoch)
-            tb_writer.add_scalar('box/target', totalavrtarget, epoch)
-            tb_writer.add_scalar('box/text', totalavrtext, epoch)
-            tb_writer.add_scalar('box/totalap', totalap, epoch)
-            tb_writer.add_scalar('box/totaltargetap', totaltargetap, epoch)
-            tb_writer.add_scalar('box/totaltextap', totaltextap, epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar('val/target', cap[i - 1], epoch)
+            tb_writer.add_scalar('box/total', total_avr, epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar(f'box/{class_names[i]}', total_avr_target[i], epoch)
+            tb_writer.add_scalar('box/totalap', total_ap, epoch)
+            for i in range(1, num_classes):
+                tb_writer.add_scalar(f'box/total{class_names[i]}ap', total_target_ap[i], epoch)
             tb_writer.add_scalar('box/facnt', facnt, epoch)
