@@ -79,6 +79,8 @@ parser.add_argument('--base_net',
 parser.add_argument('--pretrained_ssd', help='Pre-trained base model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
+parser.add_argument('--resume_all', action='store_true',
+                    help="Checkpoint state_dict file to resume training from(include epoch, optimizer and scheduler")
 
 # Scheduler
 parser.add_argument('--scheduler', default="multi-step", type=str,
@@ -112,9 +114,6 @@ parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss',
 
 parser.add_argument('--checkpoint_folder', default='models/',
                     help='Directory for saving checkpoint models')
-
-parser.add_argument('--resume_youtube', action='store_true',
-                    help="resume youtube pre-trained model")
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -493,7 +492,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     if not isinstance(total_sum, torch.Tensor):
         return 1.0, [1.0] * class_num, 0, [0] * class_num, 0
     ret_avr = (total_sum / len(dataset)).item()
-    ret_avr_target = [(t / len(dataset)).item() for t in total_sum_target]
+    ret_avr_target = [(t / len(dataset)).item() if isinstance(t, torch.Tensor) else 1.0 for t in total_sum_target]
     ret_total_ap = match_cnt / total_cnt
     ret_total_target_ap = [t1 / t2 for t1, t2 in zip(match_target_cnt, total_target_cnt)]
     ret_facnt = facnt
@@ -643,7 +642,7 @@ if __name__ == '__main__':
         ]
 
     timer.start("Load Model")
-    if args.resume:
+    if args.resume or args.resume_all:
         logging.info(f"Resume from the model {args.resume}")
         net.load(args.resume)
     elif args.base_net:
@@ -682,7 +681,7 @@ if __name__ == '__main__':
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    if args.resume and not args.resume_youtube:
+    if args.resume_all:
         loadnet = torch.load(args.resume)
         optimizer.load_state_dict(loadnet['optimizer_state_dict'])
         scheduler.load_state_dict(loadnet['scheduler_state_dict'])
