@@ -79,7 +79,7 @@ parser.add_argument('--base_net',
 parser.add_argument('--pretrained_ssd', help='Pre-trained base model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
-parser.add_argument('--resume_all', action='store_true',
+parser.add_argument('--resume_all', default=None, type=str,
                     help="Checkpoint state_dict file to resume training from(include epoch, optimizer and scheduler")
 
 # Scheduler
@@ -643,9 +643,12 @@ if __name__ == '__main__':
         ]
 
     timer.start("Load Model")
-    if args.resume or args.resume_all:
+    if args.resume:
         logging.info(f"Resume from the model {args.resume}")
         net.load(args.resume)
+    elif args.resume_all:
+        logging.info(f"Resume from the model {args.resume_all}")
+        net.load(args.resume_all)
     elif args.base_net:
         logging.info(f"Init from base net {args.base_net}")
         net.init_from_base_net(args.base_net)
@@ -683,7 +686,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.resume_all:
-        loadnet = torch.load(args.resume)
+        loadnet = torch.load(args.resume_all)
         optimizer.load_state_dict(loadnet['optimizer_state_dict'])
         scheduler.load_state_dict(loadnet['scheduler_state_dict'])
         last_epoch = loadnet['epoch']
