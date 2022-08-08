@@ -22,6 +22,7 @@ parser.add_argument("--image", type=str, help="The image file path.")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
 parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
                     help='Input Image size')
+parser.add_argument("--output_image", type=str, default="run_ssd_example_output.jpg", help="The output image file path.")
 args = parser.parse_args()
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -106,6 +107,11 @@ for i in range(boxes.size(0)):
                 2,  # font scale
                 color,
                 8)  # line type
-path = "run_ssd_example_output.jpg"
+
+if args.output_image:
+    path = args.output_image
+else:
+    path = "run_ssd_example_output.jpg"
+
 cv2.imwrite(path, orig_image)
 print(f"Found {len(probs)} objects. The output image is {path}")
