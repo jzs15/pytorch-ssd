@@ -11,12 +11,12 @@ center_variance = 0.1
 size_variance = 0.2
 
 specs = [
-    SSDSpec(30, 16, SSDBoxSizes(96, 168), [2, 3]),
-    SSDSpec(15, 32, SSDBoxSizes(168, 240), [2, 3]),
-    SSDSpec(8, 60, SSDBoxSizes(214, 312), [2, 3]),
-    SSDSpec(4, 120, SSDBoxSizes(312, 384), [2, 3]),
-    SSDSpec(2, 240, SSDBoxSizes(384, 456), [2, 3]),
-    SSDSpec(1, 280, SSDBoxSizes(456, 528), [2, 3])
+    SSDSpec(30, 16, SSDBoxSizes(48, 95), [2, 3]),
+    SSDSpec(15, 32, SSDBoxSizes(95, 176), [2, 3]),
+    SSDSpec(8, 60, SSDBoxSizes(176, 256), [2, 3]),
+    SSDSpec(4, 120, SSDBoxSizes(256, 336), [2, 3]),
+    SSDSpec(2, 240, SSDBoxSizes(336, 416), [2, 3]),
+    SSDSpec(1, 280, SSDBoxSizes(416, 496), [2, 3])
 ]
 
 priors = generate_ssd_priors(specs, image_size)
