@@ -5,7 +5,8 @@ from vision.ssd.squeezenet_ssd_lite import create_squeezenet_ssd_lite, create_sq
 from vision.ssd.mobilenet_v2_ssd_lite import create_mobilenetv2_ssd_lite, create_mobilenetv2_ssd_lite_predictor
 from vision.ssd.mobilenetv3_ssd_lite import create_mobilenetv3_large_ssd_lite, create_mobilenetv3_small_ssd_lite
 from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540, \
-    mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
+    mobilenetv3_ssd_config_480, mobilenetv3_ssd_config_400, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
+    mobilenetv3_ssd_config_160
 from vision.utils.misc import Timer
 import cv2
 import sys
@@ -20,9 +21,10 @@ parser.add_argument("--trained_model", type=str)
 parser.add_argument("--label_file", type=str, help="The label file path.")
 parser.add_argument("--image", type=str, help="The image file path.")
 parser.add_argument("--iou_threshold", type=float, default=0.5, help="The threshold of Intersection over Union.")
-parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 480, 400, 300, 240, 200, 160],
                     help='Input Image size')
-parser.add_argument("--output_image", type=str, default="run_ssd_example_output.jpg", help="The output image file path.")
+parser.add_argument("--output_image", type=str, default="run_ssd_example_output.jpg",
+                    help="The output image file path.")
 args = parser.parse_args()
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -49,6 +51,10 @@ elif net_type == 'mb3-small-ssd-lite':
         config = mobilenetv3_ssd_config_600
     elif args.image_size == 540:
         config = mobilenetv3_ssd_config_540
+    elif args.image_size == 480:
+        config = mobilenetv3_ssd_config_480
+    elif args.image_size == 400:
+        config = mobilenetv3_ssd_config_400
     elif args.image_size == 240:
         config = mobilenetv3_ssd_config_240
     elif args.image_size == 200:
