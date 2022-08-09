@@ -60,7 +60,7 @@ class OpenImagesDataset:
     def _read_data(self):
         annotation_file = f"{self.root}/sub-{self.dataset_type}-annotations-bbox.csv"
         annotations = pd.read_csv(annotation_file)
-        class_names = ['BACKGROUND'] + sorted(list(annotations['ClassName'].unique()))
+        class_names = ['BACKGROUND', 'Clickable', 'KeyFocus']
         class_dict = {class_name: i for i, class_name in enumerate(class_names)}
         data = []
         for image_id, group in annotations.groupby("ImageID"):
