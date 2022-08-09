@@ -496,7 +496,7 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     ret_avr = (total_sum / len(dataset)).item()
     ret_avr_target = [(t / len(dataset)).item() if isinstance(t, torch.Tensor) else 1.0 for t in total_sum_target]
     ret_total_ap = match_cnt / total_cnt
-    ret_total_target_ap = [t1 / t2 for t1, t2 in zip(match_target_cnt, total_target_cnt)]
+    ret_total_target_ap = [t1 / t2 if t2 > 0 else 0 for t1, t2 in zip(match_target_cnt, total_target_cnt)]
     ret_facnt = facnt
 
     return ret_avr, ret_avr_target, ret_total_ap, ret_total_target_ap, ret_facnt
