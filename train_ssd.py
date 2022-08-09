@@ -135,9 +135,9 @@ def de_parallel(model):
 
 
 def group_annotation_by_class(dataset):
-    true_case_stat = {1: 0}
-    all_gt_boxes = {1: {}}
-    all_difficult_cases = {1: {}}
+    true_case_stat = {2: 0}
+    all_gt_boxes = {2: {}}
+    all_difficult_cases = {2: {}}
     for i in range(len(dataset)):
         image_id, annotation = dataset.get_annotation(i)
         gt_boxes, classes, is_difficult = annotation
