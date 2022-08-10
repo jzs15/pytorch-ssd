@@ -88,7 +88,12 @@ class SSD(nn.Module):
         locations = torch.cat(locations, 1)
         
         if self.is_test:
-            confidences = F.softmax(confidences, dim=2)
+            res_confidences = F.softmax(confidences[:, :, (0, 1)], dim=2)
+            for cls_idx in range(2, confidences.size(2)):
+                cur_confidences = confidences[:, :, (0, cls_idx)]
+                cur_confidences = F.softmax(cur_confidences, dim=2)
+                res_confidences = torch.cat((res_confidences, cur_confidences[:, :, [-1]]), dim=2)
+            confidences = res_confidences
             boxes = box_utils.convert_locations_to_boxes(
                 locations, self.priors, self.config.center_variance, self.config.size_variance
             )
