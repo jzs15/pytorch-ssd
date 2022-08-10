@@ -67,7 +67,7 @@ def bbox_overlaps_diou(bboxes1, bboxes2):
     return dious
 
 
-def bbox_overlaps_ciou(bboxes1, bboxes2, eps=1e-7):
+def bbox_overlaps_ciou(bboxes1, bboxes2):
     bboxes1 = swap(bboxes1)
     bboxes2 = swap(bboxes2)
 
@@ -106,8 +106,8 @@ def bbox_overlaps_ciou(bboxes1, bboxes2, eps=1e-7):
     outer = torch.clamp((out_max_xy - out_min_xy), min=0)
     outer_diag = (outer[:, 0] ** 2) + (outer[:, 1] ** 2)
     union = area1 + area2 - inter_area
-    u = inter_diag / outer_diag
-    iou = inter_area / (union + eps)
+    u = (inter_diag) / outer_diag
+    iou = inter_area / union
 
     v = (4 / (math.pi ** 2)) * torch.pow((torch.atan(w2 / h2) - torch.atan(w1 / h1)), 2)
     with torch.no_grad():

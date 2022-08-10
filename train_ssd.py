@@ -20,8 +20,9 @@ from vision.datasets.voc_dataset import VOCDataset
 from vision.datasets.open_images import OpenImagesDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config import vgg_ssd_config
-from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
-    mobilenetv3_ssd_config_160, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540
+from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540, \
+    mobilenetv3_ssd_config_480, mobilenetv3_ssd_config_400, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
+    mobilenetv3_ssd_config_160
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 from torch.utils.tensorboard import SummaryWriter
@@ -79,7 +80,7 @@ parser.add_argument('--base_net',
 parser.add_argument('--pretrained_ssd', help='Pre-trained base model')
 parser.add_argument('--resume', default=None, type=str,
                     help='Checkpoint state_dict file to resume training from')
-parser.add_argument('--resume_all', action='store_true',
+parser.add_argument('--resume_all', default=None, type=str,
                     help="Checkpoint state_dict file to resume training from(include epoch, optimizer and scheduler")
 
 # Scheduler
@@ -107,7 +108,7 @@ parser.add_argument('--debug_steps', default=100, type=int,
                     help='Set the debug log output frequency.')
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 480, 400, 300, 240, 200, 160],
                     help='Input Image size')
 parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss', 'iou', 'giou', 'diou', 'ciou'],
                     help='Input Image size')
@@ -424,7 +425,8 @@ def cal_boxdiff(args, net_state_dict, DEVICE, iou_threshold, label_file, config)
     elif args.net == 'sq-ssd-lite':
         predictor = create_squeezenet_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200)
     elif args.net == 'mb2-ssd-lite' or args.net == "mb3-large-ssd-lite" or args.net == "mb3-small-ssd-lite":
-        predictor = create_mobilenetv2_ssd_lite_predictor(net, device=DEVICE, candidate_size=200, config=config)
+        predictor = create_mobilenetv2_ssd_lite_predictor(net, nms_method='hard', device=DEVICE, candidate_size=200,
+                                                          config=config)
     else:
         logging.fatal("The net type is wrong. It should be one of vgg16-ssd, mb1-ssd and mb1-ssd-lite.")
         parser.print_help(sys.stderr)
@@ -535,6 +537,10 @@ if __name__ == '__main__':
             config = mobilenetv3_ssd_config_600
         elif args.image_size == 540:
             config = mobilenetv3_ssd_config_540
+        elif args.image_size == 480:
+            config = mobilenetv3_ssd_config_480
+        elif args.image_size == 400:
+            config = mobilenetv3_ssd_config_400
         elif args.image_size == 240:
             config = mobilenetv3_ssd_config_240
         elif args.image_size == 200:
@@ -642,9 +648,12 @@ if __name__ == '__main__':
         ]
 
     timer.start("Load Model")
-    if args.resume or args.resume_all:
+    if args.resume:
         logging.info(f"Resume from the model {args.resume}")
         net.load(args.resume)
+    elif args.resume_all:
+        logging.info(f"Resume from the model {args.resume_all}")
+        net.load(args.resume_all)
     elif args.base_net:
         logging.info(f"Init from base net {args.base_net}")
         net.init_from_base_net(args.base_net)
@@ -682,7 +691,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     if args.resume_all:
-        loadnet = torch.load(args.resume)
+        loadnet = torch.load(args.resume_all)
         optimizer.load_state_dict(loadnet['optimizer_state_dict'])
         scheduler.load_state_dict(loadnet['scheduler_state_dict'])
         last_epoch = loadnet['epoch']
@@ -751,9 +760,9 @@ if __name__ == '__main__':
         class_names = dataset.class_names
         logging.info(
             f"totalavr: {total_avr}, " +
-            "".join([f"totalavr{class_names[i]}: {total_avr_target[i - 1]}, " for i in range(1, num_classes)]) +
+            "".join([f"totalavr_{class_names[i]}: {total_avr_target[i - 1]}, " for i in range(1, num_classes)]) +
             f"totalap: {total_ap}, " +
-            "".join([f"total{class_names[i]}ap: {total_target_ap[i - 1]}, " for i in range(1, num_classes)]) +
+            "".join([f"totalap_{class_names[i]}: {total_target_ap[i - 1]}, " for i in range(1, num_classes)]) +
             f"facnt: {facnt}"
         )
 
@@ -830,8 +839,8 @@ if __name__ == '__main__':
                 tb_writer.add_scalar(f'val/{cname[i]}', cap[i - 1], epoch)
             tb_writer.add_scalar('box/total', total_avr, epoch)
             for i in range(1, num_classes):
-                tb_writer.add_scalar(f'box/{class_names[i]}', total_avr_target[i - 1], epoch)
+                tb_writer.add_scalar(f'box/totalavr_{class_names[i]}', total_avr_target[i - 1], epoch)
             tb_writer.add_scalar('box/totalap', total_ap, epoch)
             for i in range(1, num_classes):
-                tb_writer.add_scalar(f'box/total{class_names[i]}ap', total_target_ap[i - 1], epoch)
+                tb_writer.add_scalar(f'box/totalap_{class_names[i]}', total_target_ap[i - 1], epoch)
             tb_writer.add_scalar('box/facnt', facnt, epoch)
