@@ -21,8 +21,8 @@ from vision.datasets.open_images import OpenImagesDataset
 from vision.nn.multibox_loss import MultiboxLoss
 from vision.ssd.config import vgg_ssd_config
 from vision.ssd.config import mobilenetv1_ssd_config, mobilenetv3_ssd_config_600, mobilenetv3_ssd_config_540, \
-    mobilenetv3_ssd_config_480, mobilenetv3_ssd_config_400, mobilenetv3_ssd_config_240, mobilenetv3_ssd_config_200, \
-    mobilenetv3_ssd_config_160
+    mobilenetv3_ssd_config_480, mobilenetv3_ssd_config_400, mobilenetv3_ssd_config_360, mobilenetv3_ssd_config_240, \
+    mobilenetv3_ssd_config_200, mobilenetv3_ssd_config_160
 from vision.ssd.config import squeezenet_ssd_config
 from vision.ssd.data_preprocessing import TrainAugmentation, TestTransform
 from torch.utils.tensorboard import SummaryWriter
@@ -108,7 +108,7 @@ parser.add_argument('--debug_steps', default=100, type=int,
                     help='Set the debug log output frequency.')
 parser.add_argument('--use_cuda', default=True, type=str2bool,
                     help='Use CUDA to train model')
-parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 480, 400, 300, 240, 200, 160],
+parser.add_argument('--image_size', default=300, type=int, choices=[600, 540, 480, 400, 360, 300, 240, 200, 160],
                     help='Input Image size')
 parser.add_argument('--lossfunc', default='l1loss', type=str, choices=['l1loss', 'iou', 'giou', 'diou', 'ciou'],
                     help='Input Image size')
@@ -541,6 +541,8 @@ if __name__ == '__main__':
             config = mobilenetv3_ssd_config_480
         elif args.image_size == 400:
             config = mobilenetv3_ssd_config_400
+        elif args.image_size == 360:
+            config = mobilenetv3_ssd_config_360
         elif args.image_size == 240:
             config = mobilenetv3_ssd_config_240
         elif args.image_size == 200:
